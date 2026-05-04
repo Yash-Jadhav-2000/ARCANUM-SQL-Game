@@ -1,0 +1,3073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arcanum Academy of Data Magic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+            /* BETA TAG */
+    .beta-tag {
+        position: fixed;
+        top: 15px;
+        font-family: Arial, sans-serif;
+        right: 15px;
+        background: #ff3b3b;
+        color: white;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: bold;
+        border-radius: 20px;
+        box-shadow: 0 0 10px rgba(255,0,0,0.6);
+        z-index: 1000;
+    }
+  </style>
+  <style>
+    html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: #0a0612; color: #e8e1cf; font-family: 'Cormorant Garamond', serif; }
+    #boot {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 18px; background: #0a0612; color: #d4c5a0;
+      font-family: 'Cinzel', serif; letter-spacing: 0.15em; text-transform: uppercase; font-size: 13px;
+    }
+    #boot .spin {
+      width: 38px; height: 38px; border: 2px solid rgba(212,197,160,0.18);
+      border-top-color: #d4c5a0; border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+    <div class="beta-tag">BETA</div>
+  <div id="root">
+    <div id="boot"><div class="spin"></div><div>Awakening the Castle…</div></div>
+  </div>
+
+  <!-- React + Babel via CDN. Babel transpiles JSX in-browser on first load. -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ============================================================================
+// ARCANUM ACADEMY OF DATA MAGIC — v2
+// 7 Worlds · 30 hand-crafted SQL trials · Arena · Endless Tower · Cosmetics
+// ============================================================================
+
+const loadScript = (src) =>
+  new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+
+// ============================================================================
+// SCHEMA — the enchanted database
+// ============================================================================
+const SCHEMA_SQL = `
+CREATE TABLE houses (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  founder TEXT,
+  element TEXT,
+  color TEXT,
+  points INTEGER DEFAULT 0
+);
+
+CREATE TABLE students (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  house_id INTEGER,
+  year INTEGER,
+  age INTEGER,
+  wand_core TEXT,
+  blood_status TEXT,
+  points INTEGER DEFAULT 0,
+  is_prefect INTEGER DEFAULT 0,
+  rival_id INTEGER,
+  FOREIGN KEY (house_id) REFERENCES houses(id)
+);
+
+CREATE TABLE professors (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  subject TEXT,
+  house_id INTEGER,
+  years_teaching INTEGER
+);
+
+CREATE TABLE wands (
+  id INTEGER PRIMARY KEY,
+  owner_id INTEGER,
+  wood TEXT,
+  core TEXT,
+  length_inches REAL,
+  power INTEGER,
+  is_lost INTEGER DEFAULT 0
+);
+
+CREATE TABLE spells (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  incantation TEXT,
+  spell_type TEXT,
+  difficulty INTEGER,
+  effect TEXT,
+  is_forbidden INTEGER DEFAULT 0
+);
+
+CREATE TABLE creatures (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  habitat TEXT,
+  danger_level INTEGER,
+  is_magical INTEGER DEFAULT 1,
+  diet TEXT,
+  parent_id INTEGER
+);
+
+CREATE TABLE potions (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  difficulty INTEGER,
+  brewing_minutes INTEGER,
+  effect TEXT,
+  price_galleons INTEGER
+);
+
+CREATE TABLE ingredients (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  rarity TEXT,
+  source TEXT,
+  price_per_unit INTEGER
+);
+
+CREATE TABLE potion_ingredients (
+  potion_id INTEGER,
+  ingredient_id INTEGER,
+  quantity INTEGER,
+  FOREIGN KEY (potion_id) REFERENCES potions(id),
+  FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+);
+
+CREATE TABLE enrollments (
+  id INTEGER PRIMARY KEY,
+  student_id INTEGER,
+  subject TEXT,
+  grade INTEGER,
+  semester TEXT
+);
+
+CREATE TABLE owls (
+  id INTEGER PRIMARY KEY,
+  name TEXT,
+  age INTEGER,
+  species TEXT,
+  owner_id INTEGER
+);
+
+CREATE TABLE treasure (
+  id INTEGER PRIMARY KEY,
+  vault_name TEXT,
+  gold INTEGER,
+  guardian TEXT
+);
+
+CREATE TABLE forest_zones (
+  id INTEGER PRIMARY KEY,
+  name TEXT,
+  is_magical INTEGER,
+  threat_level INTEGER
+);
+
+CREATE TABLE creature_sightings (
+  id INTEGER PRIMARY KEY,
+  creature_id INTEGER,
+  zone_id INTEGER,
+  sighting_date TEXT
+);
+
+-- mutable tables for World 7 (UPDATE/DELETE/transactions)
+CREATE TABLE cursed_records (
+  id INTEGER PRIMARY KEY,
+  student_id INTEGER,
+  curse_text TEXT,
+  is_active INTEGER DEFAULT 1,
+  inscribed_on TEXT
+);
+
+CREATE TABLE broken_logs (
+  id INTEGER PRIMARY KEY,
+  log_text TEXT,
+  is_corrupt INTEGER,
+  log_date TEXT
+);
+
+CREATE TABLE kingdom_db (
+  id INTEGER PRIMARY KEY,
+  artifact_name TEXT,
+  is_restored INTEGER DEFAULT 0,
+  power_level INTEGER
+);
+
+-- ============== HOUSES ==============
+INSERT INTO houses VALUES
+  (1,'Pyrethia','Ignara the Bold','Fire','#d97757',340),
+  (2,'Aquarian','Selene Mareterra','Water','#5b8cb8',285),
+  (3,'Sylvanis','Orin Thornwood','Earth','#7a9b6e',312),
+  (4,'Zephyros','Calla Windborne','Air','#b8a8d1',298);
+
+-- ============== STUDENTS ==============
+INSERT INTO students VALUES
+  (1,'Mira Hollowell',1,1,11,'Phoenix Feather','half-blood',45,0,2),
+  (2,'Cassian Vex',2,1,11,'Dragon Heartstring','pure-blood',60,0,1),
+  (3,'Lior Penhallow',3,1,12,'Unicorn Hair','muggle-born',38,0,4),
+  (4,'Nyx Ardenheart',4,1,11,'Thestral Tail','half-blood',52,0,3),
+  (5,'Theo Marchwood',1,2,12,'Phoenix Feather','pure-blood',120,1,6),
+  (6,'Saskia Brennan',2,2,13,'Dragon Heartstring','muggle-born',95,0,5),
+  (7,'Fenwick Hale',3,2,12,'Unicorn Hair','half-blood',88,0,8),
+  (8,'Ivy Clearwater',4,2,12,'Phoenix Feather','pure-blood',110,1,7),
+  (9,'Bran Oakenshield',3,3,13,'Dragon Heartstring','half-blood',180,1,11),
+  (10,'Rowan Ashford',1,3,14,'Unicorn Hair','muggle-born',155,0,12),
+  (11,'Indra Stormcrow',4,3,13,'Thestral Tail','pure-blood',172,0,9),
+  (12,'Calla Riversong',2,3,14,'Phoenix Feather','half-blood',165,1,10),
+  (13,'Damaris Vale',1,4,14,'Dragon Heartstring','pure-blood',240,0,16),
+  (14,'Esme Whitlock',2,4,15,'Unicorn Hair','muggle-born',220,1,15),
+  (15,'Kael Ironwood',3,4,15,'Thestral Tail','half-blood',235,0,14),
+  (16,'Soren Blackthorn',4,4,14,'Phoenix Feather','pure-blood',215,1,13),
+  (17,'Wren Holloway',1,5,15,'Unicorn Hair','muggle-born',310,1,18),
+  (18,'Tobias Crane',2,5,16,'Dragon Heartstring','half-blood',290,0,17),
+  (19,'Amaris Deepwood',3,5,16,'Phoenix Feather','pure-blood',305,0,20),
+  (20,'Lucien Voss',4,5,15,'Thestral Tail','pure-blood',285,1,19),
+  (21,'Zara Quill',1,6,16,'Phoenix Feather','muggle-born',380,1,22),
+  (22,'Magnus Ashbourne',2,6,17,'Dragon Heartstring','pure-blood',355,0,21),
+  (23,'Persephone Thorne',3,6,16,'Unicorn Hair','half-blood',365,1,24),
+  (24,'Octavian Ravenspire',4,6,17,'Thestral Tail','pure-blood',345,0,23),
+  (25,'Seraphina Wilde',1,7,17,'Phoenix Feather','half-blood',450,1,26),
+  (26,'Dorian Mockridge',2,7,18,'Dragon Heartstring','pure-blood',420,0,25),
+  (27,'Linnea Brackenbury',3,7,17,'Unicorn Hair','muggle-born',435,1,28),
+  (28,'Cyrus Nightingale',4,7,18,'Thestral Tail','half-blood',410,0,27);
+
+INSERT INTO professors VALUES
+  (1,'Aldric Stoneweaver','Charms',1,32),
+  (2,'Vesper Nightshade','Potions',2,28),
+  (3,'Hawthorne Briar','Herbology',3,41),
+  (4,'Cordelia Skye','Astronomy',4,19),
+  (5,'Magnus Ironcrest','Defense Against Dark Queries',1,15),
+  (6,'Ophelia Mooncroft','Transfiguration',4,37),
+  (7,'Crispin Vale','History of Magic',2,52),
+  (8,'Alaric Greybane','Care of Magical Creatures',3,24);
+
+INSERT INTO wands VALUES
+  (1,1,'Holly','Phoenix Feather',11.0,72,0),
+  (2,2,'Yew','Dragon Heartstring',13.5,88,0),
+  (3,3,'Willow','Unicorn Hair',10.5,65,0),
+  (4,4,'Ebony','Thestral Tail',12.0,79,0),
+  (5,5,'Holly','Phoenix Feather',11.5,84,0),
+  (6,6,'Yew','Dragon Heartstring',12.75,91,0),
+  (7,7,'Willow','Unicorn Hair',11.0,68,0),
+  (8,8,'Holly','Phoenix Feather',11.25,82,0),
+  (9,9,'Yew','Dragon Heartstring',13.0,95,0),
+  (10,10,'Willow','Unicorn Hair',11.5,73,0),
+  (11,11,'Ebony','Thestral Tail',12.5,86,0),
+  (12,12,'Holly','Phoenix Feather',11.75,80,0),
+  (13,13,'Yew','Dragon Heartstring',13.25,98,0),
+  (14,14,'Willow','Unicorn Hair',10.75,76,0),
+  (15,15,'Ebony','Thestral Tail',12.25,89,0),
+  (16,16,'Holly','Phoenix Feather',11.5,87,0),
+  (17,17,'Willow','Unicorn Hair',11.25,90,0),
+  (18,18,'Yew','Dragon Heartstring',13.5,99,0),
+  (19,19,'Holly','Phoenix Feather',12.0,93,0),
+  (20,20,'Ebony','Thestral Tail',12.75,94,0),
+  (21,21,'Holly','Phoenix Feather',12.5,100,0),
+  (22,22,'Yew','Dragon Heartstring',13.75,97,0),
+  (23,23,'Willow','Unicorn Hair',11.5,92,0),
+  (24,24,'Ebony','Thestral Tail',13.0,96,0),
+  (25,25,'Holly','Phoenix Feather',13.0,105,0),
+  (26,26,'Yew','Dragon Heartstring',14.0,103,0),
+  (27,27,'Willow','Unicorn Hair',12.0,101,0),
+  (28,28,'Ebony','Thestral Tail',13.5,104,0),
+  (29,NULL,'Cherry','Veela Hair',12.5,77,1),
+  (30,NULL,'Rowan','Phoenix Feather',11.0,70,1);
+
+INSERT INTO spells VALUES
+  (1,'Lumos','Lumos','Charm',1,'Light from wand tip',0),
+  (2,'Wingardium','Wingardium Leviosa','Charm',2,'Levitate object',0),
+  (3,'Expelliarmus','Expelliarmus','Defensive',3,'Disarm opponent',0),
+  (4,'Protego','Protego','Defensive',4,'Shield charm',0),
+  (5,'Stupefy','Stupefy','Offensive',4,'Stunning spell',0),
+  (6,'Patronus','Expecto Patronum','Defensive',7,'Conjure protector',0),
+  (7,'Reparo','Reparo','Charm',2,'Repair object',0),
+  (8,'Alohomora','Alohomora','Charm',2,'Unlock doors',0),
+  (9,'Crucio','Crucio','Dark',9,'Torture curse',1),
+  (10,'Avada Nullum','Avada Nullum','Dark',10,'Drop database',1),
+  (11,'Reverto','Reverto','Charm',5,'Reverse last action',0),
+  (12,'Aguamenti','Aguamenti','Charm',3,'Conjure water',0),
+  (13,'Incendio','Incendio','Charm',3,'Conjure flames',0),
+  (14,'Riddikulus','Riddikulus','Defensive',5,'Defeat boggart',0),
+  (15,'Obliviate','Obliviate','Memory',8,'Erase memory',1),
+  (16,'Accio','Accio','Charm',3,'Summoning charm',0),
+  (17,'Bombarda','Bombarda','Offensive',6,'Explosion',0);
+
+INSERT INTO creatures VALUES
+  (1,'Phoenix','Mountain peaks',3,1,'Cinders',NULL),
+  (2,'Hippogriff','Forest clearings',5,1,'Ferrets',NULL),
+  (3,'Basilisk','Underground chambers',10,1,'Spiders',NULL),
+  (4,'Niffler','Burrows',2,1,'Shiny objects',NULL),
+  (5,'Dementor','Dark places',9,1,'Happiness',NULL),
+  (6,'Unicorn','Deep forest',1,1,'Plants',NULL),
+  (7,'Dragon','Mountain caves',10,1,'Livestock',NULL),
+  (8,'Thestral','Ancient forests',4,1,'Carrion',NULL),
+  (9,'Acromantula','Dark forests',8,1,'Anything',NULL),
+  (10,'Boggart','Cupboards',3,1,'Fear',NULL),
+  (11,'Phoenix Chick','Mountain peaks',1,1,'Cinders',1),
+  (12,'Young Hippogriff','Forest clearings',2,1,'Ferrets',2),
+  (13,'Dragon Hatchling','Mountain caves',5,1,'Livestock',7),
+  (14,'Baby Unicorn','Deep forest',1,1,'Plants',6);
+
+INSERT INTO potions VALUES
+  (1,'Wakefulness Draught',2,30,'Cures drowsiness',45),
+  (2,'Polyjuice',9,2160,'Transform into another',850),
+  (3,'Felix Felicis',10,8640,'Liquid luck',2400),
+  (4,'Pepper-Up',1,15,'Cures common cold',12),
+  (5,'Veritaserum',8,4320,'Truth serum',1200),
+  (6,'Amortentia',7,1440,'Most powerful love potion',680),
+  (7,'Skele-Gro',5,720,'Regrows bones',95),
+  (8,'Draught of Living Death',9,2880,'Death-like sleep',1850),
+  (9,'Calming Draught',3,45,'Soothes anxiety',30),
+  (10,'Wit-Sharpening',4,90,'Improves clarity',75);
+
+INSERT INTO ingredients VALUES
+  (1,'Mandrake Root','rare','Herbology greenhouse',120),
+  (2,'Phoenix Feather','very rare','Phoenix',500),
+  (3,'Unicorn Hair','rare','Unicorn',180),
+  (4,'Dragon Scale','very rare','Dragon',650),
+  (5,'Bicorn Horn','rare','Bicorn',240),
+  (6,'Boomslang Skin','rare','Boomslang',150),
+  (7,'Lacewing Flies','common','Forest',8),
+  (8,'Knotgrass','common','Garden',5),
+  (9,'Fluxweed','uncommon','River banks',45),
+  (10,'Ginger Root','common','Garden',3),
+  (11,'Black Pepper','common','Market',2),
+  (12,'Ashwinder Egg','very rare','Ashwinder nest',480),
+  (13,'Sopophorous Bean','uncommon','Greenhouse',55),
+  (14,'Valerian Root','common','Garden',6),
+  (15,'Moonstone','rare','Mountain mines',210),
+  (16,'Salamander Tail','rare','Volcanic vents',195),
+  (17,'Bezoar','very rare','Goat stomach',420),
+  (18,'Wormwood','common','Marsh',9);
+
+INSERT INTO potion_ingredients VALUES
+  (1,3,1),(1,8,2),(1,10,1),
+  (2,1,1),(2,5,1),(2,6,3),(2,9,2),
+  (3,2,1),(3,12,1),(3,15,3),
+  (4,10,2),(4,11,1),
+  (5,6,1),(5,1,1),
+  (6,8,1),(6,15,2),
+  (7,1,2),(7,3,1),
+  (8,13,1),(8,14,2),(8,9,1),
+  (9,14,2),(9,7,3),
+  (10,2,1),(10,15,1);
+
+INSERT INTO enrollments VALUES
+  (1,1,'Charms',85,'Fall'),(2,1,'Potions',72,'Fall'),(3,1,'Herbology',90,'Fall'),
+  (4,2,'Charms',78,'Fall'),(5,2,'Potions',95,'Fall'),(6,2,'Astronomy',82,'Fall'),
+  (7,3,'Herbology',98,'Fall'),(8,3,'Charms',75,'Fall'),(9,3,'Transfiguration',80,'Fall'),
+  (10,4,'Astronomy',92,'Fall'),(11,4,'Charms',70,'Fall'),(12,4,'Defense Against Dark Queries',88,'Fall'),
+  (13,5,'Charms',94,'Fall'),(14,5,'Potions',82,'Fall'),(15,5,'Transfiguration',90,'Fall'),
+  (16,9,'Defense Against Dark Queries',96,'Fall'),(17,9,'Herbology',92,'Fall'),
+  (18,13,'Potions',88,'Fall'),(19,13,'Charms',91,'Fall'),
+  (20,17,'Charms',99,'Fall'),(21,17,'Potions',95,'Fall'),(22,17,'Transfiguration',93,'Fall'),
+  (23,21,'Defense Against Dark Queries',97,'Fall'),(24,21,'Charms',96,'Fall'),
+  (25,25,'Charms',100,'Fall'),(26,25,'Potions',98,'Fall'),(27,25,'Astronomy',95,'Fall'),(28,25,'Transfiguration',99,'Fall'),
+  (29,7,'Herbology',85,'Fall'),(30,11,'Astronomy',79,'Fall'),
+  (31,15,'Transfiguration',86,'Fall'),(32,19,'Herbology',94,'Fall'),
+  (33,23,'Herbology',91,'Fall'),(34,27,'Herbology',93,'Fall');
+
+INSERT INTO owls VALUES
+  (1,'Hedwig',3,'Snowy Owl',1),(2,'Errol',12,'Great Grey',5),(3,'Pigwidgeon',2,'Scops',9),
+  (4,'Archimedes',5,'Barn Owl',13),(5,'Nyctimene',7,'Tawny',17),(6,'Bubo',9,'Eagle Owl',21),
+  (7,'Athena',4,'Snowy Owl',25),(8,'Strix',6,'Tawny',2),(9,'Hera',8,'Great Horned',6),
+  (10,'Minerva',11,'Eagle Owl',10),(11,'Ozzie',1,'Scops',NULL),(12,'Dusk',14,'Barn Owl',NULL);
+
+INSERT INTO treasure VALUES
+  (1,'Pyrethia Vault',12500,'Hellhound'),
+  (2,'Aquarian Vault',9800,'Kelpie'),
+  (3,'Sylvanis Vault',11200,'Treant'),
+  (4,'Zephyros Vault',8400,'Wind Sprite'),
+  (5,'Headmaster Vault',24500,'Sphinx'),
+  (6,'Forbidden Vault',45000,'Dragon');
+
+INSERT INTO forest_zones VALUES
+  (1,'Whispering Glade',1,2),
+  (2,'Bone Hollow',1,7),
+  (3,'Centaur Crossing',1,4),
+  (4,'Dragon Spire',1,9),
+  (5,'Acromantula Lair',1,8),
+  (6,'Quiet Brook',0,1),
+  (7,'Witch''s Clearing',1,5);
+
+INSERT INTO creature_sightings VALUES
+  (1,1,1,'2024-09-12'),(2,2,3,'2024-09-15'),(3,3,5,'2024-09-20'),
+  (4,4,1,'2024-09-22'),(5,5,2,'2024-10-01'),(6,6,1,'2024-10-05'),
+  (7,7,4,'2024-10-08'),(8,8,2,'2024-10-15'),(9,9,5,'2024-10-22'),
+  (10,10,7,'2024-11-01'),(11,2,3,'2024-11-08'),(12,5,2,'2024-11-15'),
+  (13,7,4,'2024-11-22'),(14,8,2,'2024-12-01'),(15,3,5,'2024-12-05');
+
+INSERT INTO cursed_records VALUES
+  (1,3,'Tongue tied for one moon',1,'2024-10-01'),
+  (2,7,'Boots filled with porridge',1,'2024-10-12'),
+  (3,11,'Voice of a goose',1,'2024-10-18'),
+  (4,15,'Dancing feet',1,'2024-11-02'),
+  (5,19,'Reversed handwriting',1,'2024-11-10'),
+  (6,23,'Sneeze every sentence',1,'2024-11-22');
+
+INSERT INTO broken_logs VALUES
+  (1,'System startup OK',0,'2024-09-01'),
+  (2,'!@#$%^ corrupted entry !@#',1,'2024-09-15'),
+  (3,'Daily integrity check OK',0,'2024-09-20'),
+  (4,'NULL NULL NULL malformed',1,'2024-10-02'),
+  (5,'Spell index rebuilt',0,'2024-10-10'),
+  (6,'XXXX corrupt XXXX',1,'2024-10-22'),
+  (7,'Routine backup complete',0,'2024-11-01'),
+  (8,'???? unreadable ????',1,'2024-11-15');
+
+INSERT INTO kingdom_db VALUES
+  (1,'Crown of the First Mage',0,98),
+  (2,'Tome of Eternal Queries',0,87),
+  (3,'Stone of Schemas',0,76),
+  (4,'Orb of Indices',0,65),
+  (5,'Scepter of Joins',0,82);
+`;
+
+// ============================================================================
+// WORLDS, MISSIONS, COSMETICS, ACHIEVEMENTS
+// ============================================================================
+const WORLDS = [
+  { id: 1, title: "Arrival at Data Castle", subtitle: "First steps in SQL", glyph: "✦", story: "You enter the academy gates. The castle database lies dormant — basic systems must be restored before any deeper magic can flow." },
+  { id: 2, title: "The Potion Lab", subtitle: "Filtering & nullity", glyph: "⚗", story: "Master Vesper's potion inventory has been tampered with. Bottles are mislabeled, ingredients miscounted, owners forgotten." },
+  { id: 3, title: "The Forbidden Library", subtitle: "Aggregations", glyph: "✺", story: "Beneath the library lies an archive of broken statistics. Ancient analytics await someone who can summon group-magic." },
+  { id: 4, title: "The Great Hall", subtitle: "Joins & alliances", glyph: "◈", story: "Houses, students, professors, wands — everything has fallen out of relation. Rebuild the bonds before the Grand Banquet." },
+  { id: 5, title: "Dark Forest Mysteries", subtitle: "Subqueries", glyph: "ᛟ", story: "Creatures have escaped into the forest. Only nested questions can find what hides inside what hides." },
+  { id: 6, title: "Chamber of Logic", subtitle: "CTEs & windows", glyph: "♛", story: "Ancient chamber gates obey only the most refined SQL. Recursion. Ranking. Partitions of the soul." },
+  { id: 7, title: "The Final War", subtitle: "Mutations & restoration", glyph: "⚔", story: "Malachor the Dark Wizard has corrupted the kingdom database. Curses to lift, logs to purge, artifacts to restore — and one final repair to save the realm." },
+];
+const MISSIONS = [
+  // ===== WORLD 1: ARRIVAL =====
+  {
+    id: '1-1', world: 1, title: "The Welcome Scroll",
+    location: "Castle Gate",
+    story: "You arrive at Arcanum's gate. A great parchment scroll asks for proof you understand the Registry. Read every column of every student.",
+    mentor: "SELECT * FROM students reveals every column of every row. The asterisk means 'all columns'.",
+    concept: "SELECT *",
+    objective: "Show every column of every student.",
+    expectedSql: "SELECT * FROM students",
+    validate: (rows, cols) => rows.length === 28 && cols.length >= 8,
+    xp: 50, coins: 10,
+    starter: "SELECT *\nFROM students;",
+  },
+  {
+    id: '1-2', world: 1, title: "The First Spell",
+    location: "Antechamber",
+    story: "Professor Aldric tests you: speak the names of all students, no other detail. The first true spell of selection.",
+    mentor: "Replace the asterisk with the column name. SELECT name FROM students returns just that column.",
+    concept: "SELECT specific column",
+    objective: "Names of all students only.",
+    expectedSql: "SELECT name FROM students",
+    validate: (rows, cols) => rows.length === 28 && cols.length === 1 && cols[0].toLowerCase() === 'name',
+    xp: 60, coins: 12,
+    starter: "SELECT ___\nFROM students;",
+  },
+  {
+    id: '1-3', world: 1, title: "Find Your House",
+    location: "Sorting Chamber",
+    story: "The Sorting murmurs your name into House Pyrethia. Show the prefects which students walk those crimson halls.",
+    mentor: "WHERE filters rows. Pyrethia is house_id = 1.",
+    concept: "WHERE clause",
+    objective: "Names of all Pyrethia students (house_id = 1).",
+    expectedSql: "SELECT name FROM students WHERE house_id = 1",
+    validate: (rows) => rows.length === 7,
+    xp: 75, coins: 15,
+    starter: "SELECT name\nFROM students\nWHERE house_id = ___;",
+  },
+  {
+    id: '1-4', world: 1, title: "Sort the Owls",
+    location: "Owlery",
+    story: "Twelve owls perch in the owlery. The keeper wants them by age, youngest first — so they may be rotated for sleep.",
+    mentor: "ORDER BY age sorts ascending by default.",
+    concept: "ORDER BY",
+    objective: "Owl names and ages, sorted by age ascending.",
+    expectedSql: "SELECT name, age FROM owls ORDER BY age",
+    validate: (rows, cols) => {
+      if (rows.length !== 12 || cols.length !== 2) return false;
+      for (let i = 1; i < rows.length; i++) if (rows[i][1] < rows[i-1][1]) return false;
+      return rows[0][0] === 'Ozzie';
+    },
+    xp: 90, coins: 18,
+    starter: "SELECT name, age\nFROM owls\nORDER BY ___;",
+  },
+  {
+    id: '1-5', world: 1, title: "The Limited Potion Shelf",
+    location: "Storeroom",
+    story: "The storeroom shelf can only display five potions. Choose the first five by their order in the registry.",
+    mentor: "LIMIT 5 caps the result at 5 rows.",
+    concept: "LIMIT",
+    objective: "Just five potion names — the first five.",
+    expectedSql: "SELECT name FROM potions LIMIT 5",
+    validate: (rows, cols) => rows.length === 5 && cols.length === 1,
+    xp: 90, coins: 18,
+    starter: "SELECT name\nFROM potions\nLIMIT ___;",
+  },
+  {
+    id: '1-boss', world: 1, title: "BOSS · The Lost Wand",
+    location: "Lost & Found",
+    story: "A first-year's wand has vanished. All you remember is — it was made of Cherry wood, and it had a Veela Hair core. The wandkeeper has flagged it lost. Find it.",
+    mentor: "Combine WHERE conditions with AND. Three filters: is_lost = 1 AND wood = 'Cherry' AND core = 'Veela Hair'.",
+    concept: "BOSS · multi-condition WHERE",
+    objective: "The single lost Cherry/Veela-Hair wand.",
+    expectedSql: "SELECT * FROM wands WHERE is_lost = 1 AND wood = 'Cherry' AND core = 'Veela Hair'",
+    validate: (rows) => rows.length === 1 && rows[0][2] === 'Cherry' && rows[0][3] === 'Veela Hair',
+    xp: 200, coins: 50, isBoss: true,
+    starter: "SELECT *\nFROM wands\nWHERE is_lost = ___\n  AND wood = '___'\n  AND core = '___';",
+  },
+
+  // ===== WORLD 2: THE POTION LAB =====
+  {
+    id: '2-1', world: 2, title: "Rare Ingredients Search",
+    location: "Ingredient Shelves",
+    story: "Master Vesper barks: list every ingredient marked rare — not common, not uncommon, not very rare. Just rare.",
+    mentor: "WHERE rarity = 'rare' — strings need quotes.",
+    concept: "Filtering with strings",
+    objective: "All ingredients of rarity 'rare'.",
+    expectedSql: "SELECT name, rarity FROM ingredients WHERE rarity = 'rare'",
+    validate: (rows) => rows.length === 6 && rows.every(r => r[1] === 'rare'),
+    xp: 100, coins: 20,
+    starter: "SELECT name, rarity\nFROM ingredients\nWHERE rarity = '___';",
+  },
+  {
+    id: '2-2', world: 2, title: "Price Sorting",
+    location: "Apothecary",
+    story: "The apothecary needs potions ranked by price — most expensive first, so the showcase glitters with luxury.",
+    mentor: "ORDER BY price_galleons DESC sorts highest to lowest.",
+    concept: "ORDER BY DESC",
+    objective: "Potions sorted by price, descending.",
+    expectedSql: "SELECT name, price_galleons FROM potions ORDER BY price_galleons DESC",
+    validate: (rows) => {
+      if (rows.length !== 10) return false;
+      for (let i = 1; i < rows.length; i++) if (rows[i][1] > rows[i-1][1]) return false;
+      return rows[0][0] === 'Felix Felicis';
+    },
+    xp: 110, coins: 22,
+    starter: "SELECT name, price_galleons\nFROM potions\nORDER BY price_galleons ___;",
+  },
+  {
+    id: '2-3', world: 2, title: "The Null Wand Case",
+    location: "Wand Vault",
+    story: "Two wands lie unattached to any owner. The records show NULL where a name should be. Find them.",
+    mentor: "Use IS NULL — never = NULL. NULL means 'unknown', so equality cannot match it.",
+    concept: "IS NULL",
+    objective: "All wands with no owner_id.",
+    expectedSql: "SELECT id, wood FROM wands WHERE owner_id IS NULL",
+    validate: (rows) => rows.length === 2,
+    xp: 130, coins: 26,
+    starter: "SELECT id, wood\nFROM wands\nWHERE owner_id IS ___;",
+  },
+  {
+    id: '2-4', world: 2, title: "Count the Ingredients",
+    location: "Inventory Room",
+    story: "How many ingredients sit in the cupboards in total? Vesper expects a single number.",
+    mentor: "COUNT(*) counts rows. One number returns.",
+    concept: "COUNT(*)",
+    objective: "Total count of ingredients.",
+    expectedSql: "SELECT COUNT(*) FROM ingredients",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 18,
+    xp: 130, coins: 26,
+    starter: "SELECT COUNT(*)\nFROM ingredients;",
+  },
+  {
+    id: '2-5', world: 2, title: "Rename Magic Results",
+    location: "Scriptorium",
+    story: "The labels are unreadable. Rename 'name' as 'potion_name' and 'brewing_minutes' as 'minutes' on the inventory parchment.",
+    mentor: "Use AS to alias columns. SELECT col AS new_name FROM table.",
+    concept: "Column aliases (AS)",
+    objective: "Potion list with renamed columns potion_name and minutes.",
+    expectedSql: "SELECT name AS potion_name, brewing_minutes AS minutes FROM potions",
+    validate: (rows, cols) => rows.length === 10 && cols.includes('potion_name') && cols.includes('minutes'),
+    xp: 140, coins: 28,
+    starter: "SELECT name AS ___,\n       brewing_minutes AS ___\nFROM potions;",
+  },
+  {
+    id: '2-boss', world: 2, title: "BOSS · The Perfect Potion Report",
+    location: "Master's Desk",
+    story: "Vesper's final demand: a report of expensive potions (price > 500 galleons), with renamed columns 'potion' and 'price', sorted most expensive first. Get it perfect or face detention.",
+    mentor: "Combine WHERE, AS, and ORDER BY DESC into one query.",
+    concept: "BOSS · WHERE + AS + ORDER BY",
+    objective: "Expensive potions: name AS potion, price_galleons AS price, sorted DESC.",
+    expectedSql: "SELECT name AS potion, price_galleons AS price FROM potions WHERE price_galleons > 500 ORDER BY price_galleons DESC",
+    validate: (rows, cols) => rows.length === 5 && cols.includes('potion') && cols.includes('price') && rows[0][0] === 'Felix Felicis',
+    xp: 250, coins: 60, isBoss: true,
+    starter: "SELECT name AS potion,\n       price_galleons AS price\nFROM potions\nWHERE price_galleons > ___\nORDER BY price_galleons ___;",
+  },
+
+  // ===== WORLD 3: THE FORBIDDEN LIBRARY =====
+  {
+    id: '3-1', world: 3, title: "Distinct Spell Cores",
+    location: "Wand Lore Section",
+    story: "An old tome demands a list of unique wand cores — no duplicates, no repeats. Just the kinds.",
+    mentor: "DISTINCT removes duplicates from the result.",
+    concept: "DISTINCT",
+    objective: "Unique values of wand core.",
+    expectedSql: "SELECT DISTINCT core FROM wands",
+    validate: (rows) => rows.length === 5,
+    xp: 140, coins: 28,
+    starter: "SELECT ___ core\nFROM wands;",
+  },
+  {
+    id: '3-2', world: 3, title: "Spells by Type",
+    location: "Spellbook Aisle",
+    story: "The librarian wants a tally — how many spells exist for each type? Charms, Defensive, Offensive, Dark, Memory.",
+    mentor: "GROUP BY collapses rows by category. COUNT(*) tallies each group.",
+    concept: "GROUP BY + COUNT",
+    objective: "Each spell_type and its count.",
+    expectedSql: "SELECT spell_type, COUNT(*) FROM spells GROUP BY spell_type",
+    validate: (rows) => rows.length === 5 && rows.every(r => r[1] >= 1),
+    xp: 160, coins: 32,
+    starter: "SELECT spell_type, COUNT(*)\nFROM spells\nGROUP BY ___;",
+  },
+  {
+    id: '3-3', world: 3, title: "Subjects of Excellence",
+    location: "Records Hall",
+    story: "Show subjects where the average grade exceeds 90 — the disciplines where students truly excel.",
+    mentor: "HAVING filters AFTER aggregation. WHERE filters BEFORE. Use HAVING AVG(grade) > 90.",
+    concept: "GROUP BY + HAVING",
+    objective: "Subjects with average grade > 90.",
+    expectedSql: "SELECT subject, AVG(grade) FROM enrollments GROUP BY subject HAVING AVG(grade) > 90",
+    validate: (rows) => rows.length === 2 && rows.every(r => r[1] > 90),
+    xp: 180, coins: 36,
+    starter: "SELECT subject, AVG(grade)\nFROM enrollments\nGROUP BY subject\nHAVING ___ > 90;",
+  },
+  {
+    id: '3-4', world: 3, title: "Average Wand Power",
+    location: "Wand Workshop",
+    story: "Compute the average power of wands grouped by their core. The Ollivander descendant requires precise data.",
+    mentor: "AVG(power) gives the mean. Group by core.",
+    concept: "AVG with GROUP BY",
+    objective: "Average power per wand core.",
+    expectedSql: "SELECT core, AVG(power) FROM wands GROUP BY core",
+    validate: (rows) => rows.length === 5,
+    xp: 180, coins: 36,
+    starter: "SELECT core, AVG(power)\nFROM wands\nGROUP BY ___;",
+  },
+  {
+    id: '3-5', world: 3, title: "Sum of Treasury",
+    location: "Vault Hall",
+    story: "How much gold lies across all vaults combined? A single grand total.",
+    mentor: "SUM(gold) totals the column. One number returns.",
+    concept: "SUM",
+    objective: "Total gold across all vaults.",
+    expectedSql: "SELECT SUM(gold) FROM treasure",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 111400,
+    xp: 180, coins: 36,
+    starter: "SELECT ___(gold)\nFROM treasure;",
+  },
+  {
+    id: '3-boss', world: 3, title: "BOSS · Library Analytics Dashboard",
+    location: "Librarian's Throne",
+    story: "Build the grand analytics: for each spell type, count the spells AND average their difficulty. Sort by average difficulty descending — most dangerous first.",
+    mentor: "Two aggregates at once: COUNT(*) AS spells, AVG(difficulty) AS avg_diff. ORDER BY the alias.",
+    concept: "BOSS · multi-aggregate analytics",
+    objective: "spell_type, count, avg difficulty — sorted by avg difficulty DESC.",
+    expectedSql: "SELECT spell_type, COUNT(*) AS spells, AVG(difficulty) AS avg_diff FROM spells GROUP BY spell_type ORDER BY avg_diff DESC",
+    validate: (rows, cols) => rows.length === 5 && cols.length === 3 && rows[0][0] === 'Dark',
+    xp: 320, coins: 80, isBoss: true,
+    starter: "SELECT spell_type,\n       COUNT(*) AS spells,\n       AVG(difficulty) AS avg_diff\nFROM spells\nGROUP BY spell_type\nORDER BY ___ DESC;",
+  },
+
+  // ===== WORLD 4: GREAT HALL ALLIANCES =====
+  {
+    id: '4-1', world: 4, title: "Students and Their Houses",
+    location: "Sorting Hall",
+    story: "Pair every student with the name of their house. Two scrolls weave into one.",
+    mentor: "INNER JOIN connects on a matching key. students.house_id = houses.id.",
+    concept: "INNER JOIN",
+    objective: "Each student's name with their house's name.",
+    expectedSql: "SELECT s.name, h.name FROM students s JOIN houses h ON s.house_id = h.id",
+    validate: (rows, cols) => rows.length === 28 && cols.length === 2,
+    xp: 200, coins: 40,
+    starter: "SELECT s.name, h.name\nFROM students s\nJOIN houses h ON s.___ = h.id;",
+  },
+  {
+    id: '4-2', world: 4, title: "Owls Without Owners",
+    location: "Owlery",
+    story: "Some owls have lost their humans. Two of them. Find them by leaving the owl side intact when no student matches.",
+    mentor: "LEFT JOIN owls to students; the unmatched owls have NULL on the right. Filter WHERE s.id IS NULL.",
+    concept: "LEFT JOIN + IS NULL",
+    objective: "Owls whose owner_id matches no student.",
+    expectedSql: "SELECT o.name FROM owls o LEFT JOIN students s ON o.owner_id = s.id WHERE s.id IS NULL",
+    validate: (rows) => rows.length === 2,
+    xp: 240, coins: 48,
+    starter: "SELECT o.name\nFROM owls o\nLEFT JOIN students s ON o.owner_id = s.id\nWHERE s.id IS ___;",
+  },
+  {
+    id: '4-3', world: 4, title: "Three Tables Together",
+    location: "Faculty Lounge",
+    story: "Show every student with their house name and their wand's power. Three tables must dance in step.",
+    mentor: "Two joins in sequence: students→houses, students→wands.",
+    concept: "Multi-table JOIN",
+    objective: "Student name, house name, wand power — for all 28 students.",
+    expectedSql: "SELECT s.name, h.name, w.power FROM students s JOIN houses h ON s.house_id = h.id JOIN wands w ON s.id = w.owner_id",
+    validate: (rows, cols) => rows.length === 28 && cols.length === 3,
+    xp: 270, coins: 54,
+    starter: "SELECT s.name, h.name, w.power\nFROM students s\nJOIN houses h ON s.house_id = h.id\nJOIN wands w ON s.id = w.___;",
+  },
+  {
+    id: '4-4', world: 4, title: "Self-Joined Rivals",
+    location: "Duelling Yard",
+    story: "Each student has a sworn rival in another house. Pair every student with their rival — a self-join across the same table.",
+    mentor: "Alias the same table twice: students s1 JOIN students s2 ON s1.rival_id = s2.id.",
+    concept: "Self JOIN",
+    objective: "Each student's name with their rival's name (28 rows).",
+    expectedSql: "SELECT s1.name, s2.name FROM students s1 JOIN students s2 ON s1.rival_id = s2.id",
+    validate: (rows) => rows.length === 28,
+    xp: 290, coins: 58,
+    starter: "SELECT s1.name, s2.name\nFROM students s1\nJOIN students s2 ON s1.rival_id = s2.___;",
+  },
+  {
+    id: '4-boss', world: 4, title: "BOSS · The Grand Banquet Seating",
+    location: "Great Hall",
+    story: "The Grand Banquet awaits. Produce the seating manifest: for each student show house name, student name, and year — sorted by house, then year, then student name. The hall depends on this order.",
+    mentor: "JOIN + multi-column ORDER BY: ORDER BY h.name, s.year, s.name.",
+    concept: "BOSS · JOIN + multi-column ORDER",
+    objective: "Sorted seating: house, name, year for all 28 students.",
+    expectedSql: "SELECT h.name, s.name, s.year FROM students s JOIN houses h ON s.house_id = h.id ORDER BY h.name, s.year, s.name",
+    validate: (rows, cols) => {
+      if (rows.length !== 28 || cols.length !== 3) return false;
+      // First should be Aquarian (alphabetically), year 1
+      return rows[0][0] === 'Aquarian' && rows[0][2] === 1;
+    },
+    xp: 380, coins: 95, isBoss: true,
+    starter: "SELECT h.name, s.name, s.year\nFROM students s\nJOIN houses h ON s.house_id = h.id\nORDER BY h.name, s.year, s.___;",
+  },
+
+  // ===== WORLD 5: DARK FOREST MYSTERIES =====
+  {
+    id: '5-1', world: 5, title: "The Strongest Beast",
+    location: "Forest Edge",
+    story: "Find the creature(s) with the highest danger_level. Use a subquery — there may be more than one.",
+    mentor: "WHERE danger_level = (SELECT MAX(danger_level) FROM creatures). The subquery returns one number.",
+    concept: "Scalar subquery",
+    objective: "Creatures whose danger_level equals the max.",
+    expectedSql: "SELECT name, danger_level FROM creatures WHERE danger_level = (SELECT MAX(danger_level) FROM creatures)",
+    validate: (rows) => rows.length === 2 && rows.every(r => r[1] === 10),
+    xp: 290, coins: 58,
+    starter: "SELECT name, danger_level\nFROM creatures\nWHERE danger_level = (\n  SELECT MAX(danger_level) FROM ___\n);",
+  },
+  {
+    id: '5-2', world: 5, title: "Creatures with Offspring",
+    location: "Nesting Grounds",
+    story: "Find the parent creatures — those whose IDs appear as parent_id somewhere in the table.",
+    mentor: "WHERE id IN (SELECT DISTINCT parent_id FROM creatures WHERE parent_id IS NOT NULL).",
+    concept: "Subquery with IN",
+    objective: "Creatures that are listed as a parent.",
+    expectedSql: "SELECT name FROM creatures WHERE id IN (SELECT DISTINCT parent_id FROM creatures WHERE parent_id IS NOT NULL)",
+    validate: (rows) => rows.length === 4,
+    xp: 320, coins: 64,
+    starter: "SELECT name\nFROM creatures\nWHERE id IN (\n  SELECT DISTINCT parent_id\n  FROM ___\n  WHERE parent_id IS NOT NULL\n);",
+  },
+  {
+    id: '5-3', world: 5, title: "EXISTS in the Shadows",
+    location: "Watcher's Tower",
+    story: "Show only forest zones where SOMETHING has been sighted. Empty zones are silent.",
+    mentor: "EXISTS (SELECT 1 FROM creature_sightings cs WHERE cs.zone_id = z.id) — returns true if any matching row exists.",
+    concept: "EXISTS",
+    objective: "Forest zone names with at least one sighting.",
+    expectedSql: "SELECT name FROM forest_zones z WHERE EXISTS (SELECT 1 FROM creature_sightings cs WHERE cs.zone_id = z.id)",
+    validate: (rows) => rows.length === 6,
+    xp: 340, coins: 68,
+    starter: "SELECT name\nFROM forest_zones z\nWHERE EXISTS (\n  SELECT 1 FROM creature_sightings cs\n  WHERE cs.zone_id = z.___\n);",
+  },
+  {
+    id: '5-4', world: 5, title: "Correlated Hunt",
+    location: "Tracker's Camp",
+    story: "Find creatures sighted more than once. For each, count their sightings using a correlated subquery.",
+    mentor: "The subquery references the outer row: (SELECT COUNT(*) FROM creature_sightings cs WHERE cs.creature_id = c.id).",
+    concept: "Correlated subquery",
+    objective: "Creatures with sighting count > 1.",
+    expectedSql: "SELECT c.name, (SELECT COUNT(*) FROM creature_sightings cs WHERE cs.creature_id = c.id) AS sightings FROM creatures c WHERE (SELECT COUNT(*) FROM creature_sightings cs WHERE cs.creature_id = c.id) > 1",
+    validate: (rows) => rows.length === 5 && rows.every(r => r[1] > 1),
+    xp: 380, coins: 76,
+    starter: "SELECT c.name,\n       (SELECT COUNT(*) FROM creature_sightings cs WHERE cs.creature_id = c.id) AS sightings\nFROM creatures c\nWHERE (SELECT COUNT(*) FROM creature_sightings cs WHERE cs.creature_id = c.id) > ___;",
+  },
+  {
+    id: '5-boss', world: 5, title: "BOSS · Track the Dark Beast",
+    location: "Bone Hollow",
+    story: "Malachor unleashed something. Find which creatures have been sighted in HIGH-THREAT zones (threat_level >= 7) — and count those sightings, ordered by count descending. The most-sighted is your prime suspect.",
+    mentor: "JOIN creatures + sightings, filter to high-threat zones using a subquery, GROUP BY creature, ORDER BY count DESC.",
+    concept: "BOSS · JOIN + subquery + GROUP BY",
+    objective: "Creatures sighted in high-threat zones with their counts, sorted desc.",
+    expectedSql: "SELECT c.name, COUNT(*) AS sightings FROM creatures c JOIN creature_sightings cs ON c.id = cs.creature_id WHERE cs.zone_id IN (SELECT id FROM forest_zones WHERE threat_level >= 7) GROUP BY c.name ORDER BY sightings DESC",
+    validate: (rows) => {
+      if (rows.length !== 5) return false;
+      for (let i = 1; i < rows.length; i++) if (rows[i][1] > rows[i-1][1]) return false;
+      return rows[0][1] >= 1;
+    },
+    xp: 480, coins: 120, isBoss: true,
+    starter: "SELECT c.name, COUNT(*) AS sightings\nFROM creatures c\nJOIN creature_sightings cs ON c.id = cs.creature_id\nWHERE cs.zone_id IN (\n  SELECT id FROM forest_zones WHERE threat_level >= ___\n)\nGROUP BY c.name\nORDER BY sightings DESC;",
+  },
+
+  // ===== WORLD 6: CHAMBER OF LOGIC =====
+  {
+    id: '6-1', world: 6, title: "The CTE Gate",
+    location: "Stone Antechamber",
+    story: "A stone gate opens only to a Common Table Expression. Build a CTE called 'house_totals' that sums points by house. Then select all from it, ordered by total descending.",
+    mentor: "WITH house_totals AS (SELECT house_id, SUM(points) AS total FROM students GROUP BY house_id) SELECT * FROM house_totals ORDER BY total DESC.",
+    concept: "CTE (WITH)",
+    objective: "All four houses with their total points, ordered DESC.",
+    expectedSql: "WITH house_totals AS (SELECT house_id, SUM(points) AS total FROM students GROUP BY house_id) SELECT * FROM house_totals ORDER BY total DESC",
+    validate: (rows) => {
+      if (rows.length !== 4) return false;
+      for (let i = 1; i < rows.length; i++) if (rows[i][1] > rows[i-1][1]) return false;
+      return rows[0][1] === 1700;
+    },
+    xp: 360, coins: 72,
+    starter: "WITH house_totals AS (\n  SELECT house_id, SUM(points) AS total\n  FROM students\n  GROUP BY house_id\n)\nSELECT *\nFROM house_totals\nORDER BY total DESC;",
+  },
+  {
+    id: '6-2', world: 6, title: "The Recursive Staircase",
+    location: "Shifting Stairs",
+    story: "Seven enchanted steps appear and vanish. Use a RECURSIVE CTE to count them, 1 through 7. Only recursion can climb.",
+    mentor: "WITH RECURSIVE stairs(step) AS (SELECT 1 UNION ALL SELECT step + 1 FROM stairs WHERE step < 7) SELECT * FROM stairs.",
+    concept: "Recursive CTE",
+    objective: "Steps 1 through 7 generated recursively.",
+    expectedSql: "WITH RECURSIVE stairs(step) AS (SELECT 1 UNION ALL SELECT step + 1 FROM stairs WHERE step < 7) SELECT * FROM stairs",
+    validate: (rows) => {
+      if (rows.length !== 7) return false;
+      return rows.every((r, i) => r[0] === i + 1);
+    },
+    xp: 440, coins: 88,
+    starter: "WITH RECURSIVE stairs(step) AS (\n  SELECT 1\n  UNION ALL\n  SELECT step + 1 FROM stairs WHERE step < ___\n)\nSELECT * FROM stairs;",
+  },
+  {
+    id: '6-3', world: 6, title: "ROW_NUMBER Tournament",
+    location: "Tournament Stands",
+    story: "Rank the top 10 wands by power, with a unique row number for each. No ties allowed — ROW_NUMBER assigns one number per row, period.",
+    mentor: "ROW_NUMBER() OVER (ORDER BY power DESC). Then LIMIT 10.",
+    concept: "ROW_NUMBER window function",
+    objective: "Top 10 wands by power, with row numbers.",
+    expectedSql: "SELECT id, power, ROW_NUMBER() OVER (ORDER BY power DESC) AS rnk FROM wands LIMIT 10",
+    validate: (rows, cols) => rows.length === 10 && cols.length === 3 && rows[0][2] === 1 && rows[9][2] === 10,
+    xp: 460, coins: 92,
+    starter: "SELECT id, power,\n       ROW_NUMBER() OVER (ORDER BY power DESC) AS rnk\nFROM wands\nLIMIT 10;",
+  },
+  {
+    id: '6-4', world: 6, title: "RANK by Partition",
+    location: "Potion Contest Hall",
+    story: "For each difficulty level, rank potions by price descending. Ties get the same RANK — partition by difficulty.",
+    mentor: "RANK() OVER (PARTITION BY difficulty ORDER BY price_galleons DESC).",
+    concept: "RANK + PARTITION BY",
+    objective: "Each potion ranked by price within its difficulty group.",
+    expectedSql: "SELECT name, difficulty, price_galleons, RANK() OVER (PARTITION BY difficulty ORDER BY price_galleons DESC) AS rk FROM potions",
+    validate: (rows, cols) => rows.length === 10 && cols.length === 4,
+    xp: 480, coins: 96,
+    starter: "SELECT name, difficulty, price_galleons,\n       RANK() OVER (\n         PARTITION BY ___\n         ORDER BY price_galleons DESC\n       ) AS rk\nFROM potions;",
+  },
+  {
+    id: '6-boss', world: 6, title: "BOSS · The Champion of Each House",
+    location: "Hall of Champions",
+    story: "Use a CTE combined with RANK partitioned by house to find the top student of each house. Only those with rank 1 are champions.",
+    mentor: "WITH ranked AS (SELECT name, house_id, points, RANK() OVER (PARTITION BY house_id ORDER BY points DESC) AS rk FROM students) SELECT name, house_id, points FROM ranked WHERE rk = 1.",
+    concept: "BOSS · CTE + window function",
+    objective: "The single top-scoring student of each house (4 rows).",
+    expectedSql: "WITH ranked AS (SELECT name, house_id, points, RANK() OVER (PARTITION BY house_id ORDER BY points DESC) AS rk FROM students) SELECT name, house_id, points FROM ranked WHERE rk = 1",
+    validate: (rows) => rows.length === 4,
+    xp: 600, coins: 150, isBoss: true,
+    starter: "WITH ranked AS (\n  SELECT name, house_id, points,\n         RANK() OVER (PARTITION BY house_id ORDER BY points DESC) AS rk\n  FROM students\n)\nSELECT name, house_id, points\nFROM ranked\nWHERE rk = ___;",
+  },
+
+  // ===== WORLD 7: THE FINAL WAR =====
+  {
+    id: '7-1', world: 7, title: "Lift the Curses",
+    location: "Cursed Vault",
+    story: "Six active curses bind students. Lift them all — UPDATE every active curse, setting is_active = 0. The students depend on you.",
+    mentor: "UPDATE cursed_records SET is_active = 0 WHERE is_active = 1. Then SELECT to verify zero remain active.",
+    concept: "UPDATE",
+    objective: "Update curses to inactive, then verify with SELECT.",
+    expectedSql: "UPDATE cursed_records SET is_active = 0 WHERE is_active = 1; SELECT COUNT(*) FROM cursed_records WHERE is_active = 1",
+    isMutation: true,
+    validate: (rows) => rows.length === 1 && rows[0][0] === 0,
+    xp: 400, coins: 80,
+    starter: "-- write the UPDATE then verify with SELECT\nUPDATE cursed_records\nSET is_active = ___\nWHERE is_active = 1;\n\nSELECT COUNT(*)\nFROM cursed_records\nWHERE is_active = 1;",
+  },
+  {
+    id: '7-2', world: 7, title: "Purge the Broken Logs",
+    location: "Records Crypt",
+    story: "Corrupt logs choke the kingdom's chronicle. DELETE every log where is_corrupt = 1. Then count what remains.",
+    mentor: "DELETE FROM broken_logs WHERE is_corrupt = 1; then SELECT COUNT(*).",
+    concept: "DELETE",
+    objective: "Delete corrupt logs, then count remaining.",
+    expectedSql: "DELETE FROM broken_logs WHERE is_corrupt = 1; SELECT COUNT(*) FROM broken_logs",
+    isMutation: true,
+    validate: (rows) => rows.length === 1 && rows[0][0] === 4,
+    xp: 440, coins: 88,
+    starter: "DELETE FROM broken_logs\nWHERE is_corrupt = ___;\n\nSELECT COUNT(*)\nFROM broken_logs;",
+  },
+  {
+    id: '7-3', world: 7, title: "Restore the Strong Artifacts",
+    location: "Crown Vault",
+    story: "Five artifacts await restoration. Restore only those of power_level >= 80 — the most potent must rise first. UPDATE them, then count restored.",
+    mentor: "UPDATE kingdom_db SET is_restored = 1 WHERE power_level >= 80; SELECT COUNT(*) ... WHERE is_restored = 1.",
+    concept: "Conditional UPDATE",
+    objective: "Restore artifacts with power >= 80, then count restored (should be 3).",
+    expectedSql: "UPDATE kingdom_db SET is_restored = 1 WHERE power_level >= 80; SELECT COUNT(*) FROM kingdom_db WHERE is_restored = 1",
+    isMutation: true,
+    validate: (rows) => rows.length === 1 && rows[0][0] === 3,
+    xp: 480, coins: 96,
+    starter: "UPDATE kingdom_db\nSET is_restored = 1\nWHERE power_level >= ___;\n\nSELECT COUNT(*)\nFROM kingdom_db\nWHERE is_restored = 1;",
+  },
+  {
+    id: '7-4', world: 7, title: "The Final Repair",
+    location: "Throne Room",
+    story: "The kingdom's last hope. Restore EVERY remaining artifact — UPDATE all unrestored to restored — then verify the kingdom is whole. Five artifacts must shine when you finish.",
+    mentor: "UPDATE kingdom_db SET is_restored = 1; then SELECT COUNT(*) WHERE is_restored = 1.",
+    concept: "BOSS · Final restoration",
+    objective: "Restore everything; count must equal 5.",
+    expectedSql: "UPDATE kingdom_db SET is_restored = 1; SELECT COUNT(*) FROM kingdom_db WHERE is_restored = 1",
+    isMutation: true,
+    validate: (rows) => rows.length === 1 && rows[0][0] === 5,
+    xp: 800, coins: 200, isBoss: true, isFinalBoss: true,
+    starter: "-- the final incantation\nUPDATE kingdom_db\nSET is_restored = ___;\n\nSELECT COUNT(*)\nFROM kingdom_db\nWHERE is_restored = 1;",
+  },
+];
+const HOUSES = [
+  { id: 1, name: "Pyrethia", color: "#d97757", element: "Fire", glyph: "🜂", virtue: "Courage" },
+  { id: 2, name: "Aquarian", color: "#5b8cb8", element: "Water", glyph: "🜄", virtue: "Wisdom" },
+  { id: 3, name: "Sylvanis", color: "#7a9b6e", element: "Earth", glyph: "🜃", virtue: "Loyalty" },
+  { id: 4, name: "Zephyros", color: "#b8a8d1", element: "Air", glyph: "🜁", virtue: "Cunning" },
+];
+const COSMETICS = [
+  { id: "robe_init", type: "robe", name: "Initiate's Robe", cost: 0, owned: true },
+  { id: "robe_apprentice", type: "robe", name: "Apprentice's Robe", cost: 100 },
+  { id: "robe_adept", type: "robe", name: "Adept's Robe", cost: 250 },
+  { id: "robe_archmage", type: "robe", name: "Archmage's Robe", cost: 600 },
+  { id: "wand_oak", type: "wand", name: "Oak Wand", cost: 0, owned: true },
+  { id: "wand_yew", type: "wand", name: "Yew Wand", cost: 80 },
+  { id: "wand_phoenix", type: "wand", name: "Phoenix Core Wand", cost: 200 },
+  { id: "wand_elder", type: "wand", name: "Elder Wand", cost: 500 },
+  { id: "title_query_apprentice", type: "title", name: "Query Apprentice", cost: 0, owned: true },
+  { id: "title_join_master", type: "title", name: "Join Master", cost: 150, requires: 4 },
+  { id: "title_subquery_sage", type: "title", name: "Subquery Sage", cost: 200, requires: 5 },
+  { id: "title_window_walker", type: "title", name: "Window Walker", cost: 300, requires: 6 },
+  { id: "title_sql_master", type: "title", name: "SQL Master", cost: 600, requires: 7 },
+];
+const ACHIEVEMENTS = [
+  { id: "first_spell", title: "First Spell", desc: "Cast your first query", icon: "✦" },
+  { id: "world_1", title: "Initiate", desc: "Conquer World I", icon: "◐" },
+  { id: "world_2", title: "Brewer", desc: "Conquer World II", icon: "⚗" },
+  { id: "world_3", title: "Loremaster", desc: "Conquer World III", icon: "✺" },
+  { id: "world_4", title: "Diplomat", desc: "Conquer World IV", icon: "◈" },
+  { id: "world_5", title: "Tracker", desc: "Conquer World V", icon: "ᛟ" },
+  { id: "world_6", title: "Logician", desc: "Conquer World VI", icon: "♛" },
+  { id: "world_7", title: "Kingdom Saver", desc: "Conquer World VII", icon: "⚔" },
+  { id: "no_hint_run", title: "Untaught Genius", desc: "Pass any level without hints", icon: "✧" },
+  { id: "boss_slain", title: "Boss Slayer", desc: "Defeat your first boss", icon: "★" },
+  { id: "arena_5", title: "Arena Veteran", desc: "Win 5 arena rounds", icon: "⚡" },
+  { id: "tower_10", title: "Tower Climber", desc: "Reach floor 10 of Endless Tower", icon: "▲" },
+];
+
+// ============================================================================
+// ARENA POOL — random query challenges with strict timers
+// ============================================================================
+const ARENA_POOL = [
+  {
+    id: 'arena-1',
+    prompt: "Quickly! Find the count of all students.",
+    expectedSql: "SELECT COUNT(*) FROM students",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 28,
+    seconds: 30,
+  },
+  {
+    id: 'arena-2',
+    prompt: "List names of year-7 students, alphabetical.",
+    expectedSql: "SELECT name FROM students WHERE year = 7 ORDER BY name",
+    validate: (rows) => rows.length === 4 && rows[0][0] === 'Cyrus Nightingale',
+    seconds: 45,
+  },
+  {
+    id: 'arena-3',
+    prompt: "How many wands have NO owner? Single number.",
+    expectedSql: "SELECT COUNT(*) FROM wands WHERE owner_id IS NULL",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 2,
+    seconds: 30,
+  },
+  {
+    id: 'arena-4',
+    prompt: "What is the average grade across all enrollments?",
+    expectedSql: "SELECT AVG(grade) FROM enrollments",
+    validate: (rows) => rows.length === 1 && Math.abs(rows[0][0] - 88.6) < 1,
+    seconds: 30,
+  },
+  {
+    id: 'arena-5',
+    prompt: "Show students from Sylvanis (house_id=3) ordered by points DESC.",
+    expectedSql: "SELECT name, points FROM students WHERE house_id = 3 ORDER BY points DESC",
+    validate: (rows) => rows.length === 7 && rows[0][1] === 435,
+    seconds: 45,
+  },
+  {
+    id: 'arena-6',
+    prompt: "How many distinct wand cores exist?",
+    expectedSql: "SELECT COUNT(DISTINCT core) FROM wands",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 5,
+    seconds: 35,
+  },
+  {
+    id: 'arena-7',
+    prompt: "List ingredients with price > 200, by price DESC.",
+    expectedSql: "SELECT name, price_per_unit FROM ingredients WHERE price_per_unit > 200 ORDER BY price_per_unit DESC",
+    validate: (rows) => rows.length >= 4 && rows[0][1] >= rows[rows.length-1][1],
+    seconds: 45,
+  },
+  {
+    id: 'arena-8',
+    prompt: "Total gold across all vaults.",
+    expectedSql: "SELECT SUM(gold) FROM treasure",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 111400,
+    seconds: 25,
+  },
+  {
+    id: 'arena-9',
+    prompt: "How many forest zones have threat_level >= 7?",
+    expectedSql: "SELECT COUNT(*) FROM forest_zones WHERE threat_level >= 7",
+    validate: (rows) => rows.length === 1 && rows[0][0] === 3,
+    seconds: 30,
+  },
+  {
+    id: 'arena-10',
+    prompt: "Show 3 most dangerous creatures.",
+    expectedSql: "SELECT name, danger_level FROM creatures ORDER BY danger_level DESC LIMIT 3",
+    validate: (rows) => rows.length === 3 && rows[0][1] === 10,
+    seconds: 35,
+  },
+];
+
+// ============================================================================
+// ENDLESS TOWER — procedural difficulty
+// ============================================================================
+const TOWER_FLOORS = [
+  // floors 1-3: SELECT/WHERE basics with random target
+  { gen: () => {
+    const houseId = 1 + Math.floor(Math.random() * 4);
+    const houseName = HOUSES.find(h => h.id === houseId).name;
+    return {
+      prompt: `Show all students in house ${houseName} (house_id = ${houseId}).`,
+      expectedSql: `SELECT name FROM students WHERE house_id = ${houseId}`,
+      validate: (rows) => rows.length === 7,
+      seconds: 40,
+    };
+  }},
+  // floor type 2: ORDER BY
+  { gen: () => {
+    const dir = Math.random() < 0.5 ? 'ASC' : 'DESC';
+    return {
+      prompt: `Show all wands ordered by power ${dir}.`,
+      expectedSql: `SELECT id, power FROM wands ORDER BY power ${dir}`,
+      validate: (rows) => {
+        if (rows.length !== 30) return false;
+        for (let i = 1; i < rows.length; i++) {
+          if (dir === 'ASC' && rows[i][1] < rows[i-1][1]) return false;
+          if (dir === 'DESC' && rows[i][1] > rows[i-1][1]) return false;
+        }
+        return true;
+      },
+      seconds: 40,
+    };
+  }},
+  // floor type 3: aggregation
+  { gen: () => {
+    return {
+      prompt: `Count students per year (GROUP BY year).`,
+      expectedSql: `SELECT year, COUNT(*) FROM students GROUP BY year`,
+      validate: (rows) => rows.length === 7 && rows.every(r => r[1] === 4),
+      seconds: 50,
+    };
+  }},
+  // floor type 4: JOIN
+  { gen: () => {
+    return {
+      prompt: `Show every student's name with their house's name (INNER JOIN).`,
+      expectedSql: `SELECT s.name, h.name FROM students s JOIN houses h ON s.house_id = h.id`,
+      validate: (rows) => rows.length === 28,
+      seconds: 60,
+    };
+  }},
+  // floor type 5: subquery
+  { gen: () => {
+    return {
+      prompt: `Find creatures whose danger_level equals the maximum danger_level.`,
+      expectedSql: `SELECT name FROM creatures WHERE danger_level = (SELECT MAX(danger_level) FROM creatures)`,
+      validate: (rows) => rows.length === 2,
+      seconds: 70,
+    };
+  }},
+  // floor type 6: window
+  { gen: () => {
+    return {
+      prompt: `Rank students by points within each house using RANK() window function.`,
+      expectedSql: `SELECT name, house_id, RANK() OVER (PARTITION BY house_id ORDER BY points DESC) FROM students`,
+      validate: (rows, cols) => rows.length === 28 && cols.length === 3,
+      seconds: 80,
+    };
+  }},
+];
+
+const generateTowerFloor = (floor) => {
+  // Difficulty escalates with floor number
+  const idx = Math.min(Math.floor((floor - 1) / 2), TOWER_FLOORS.length - 1);
+  return TOWER_FLOORS[idx].gen();
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+function ArcanumAcademy() {
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [db, setDb] = useState(null);
+  const [SQL, setSQL] = useState(null);
+  const [screen, setScreen] = useState("loading");
+  const [house, setHouse] = useState(null);
+  const [playerName, setPlayerName] = useState("");
+  const [activeMission, setActiveMission] = useState(null);
+  const [theme, setTheme] = useState("dark");
+  const [progress, setProgress] = useState({
+    completed: [], xp: 0, coins: 0, achievements: [], hintsUsed: {},
+    arenaWins: 0, towerHighest: 0,
+    ownedCosmetics: ["robe_init", "wand_oak", "title_query_apprentice"],
+    equipped: { robe: "robe_init", wand: "wand_oak", title: "title_query_apprentice" },
+  });
+
+  // Load libs + init db
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await Promise.all([
+          loadScript("https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"),
+          loadScript("https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"),
+          loadScript("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"),
+        ]);
+        if (cancelled) return;
+        const sqlLib = await window.initSqlJs({
+          locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`,
+        });
+        if (cancelled) return;
+        const database = new sqlLib.Database();
+        database.run(SCHEMA_SQL);
+        setSQL(sqlLib);
+        setDb(database);
+        setLoaded(true);
+        setTimeout(() => setScreen("intro"), 500);
+      } catch (e) {
+        console.error(e);
+        setLoadError(String(e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Restore save
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem("arcanum_save_v2") || "null");
+      if (saved && saved.house) {
+        setHouse(saved.house);
+        setPlayerName(saved.playerName || "");
+        setProgress({...progress, ...saved.progress});
+        setScreen(saved.screen || "hub");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!loaded || !house) return;
+    try {
+      localStorage.setItem("arcanum_save_v2", JSON.stringify({
+        house, playerName, progress, screen,
+      }));
+    } catch {}
+  }, [house, playerName, progress, screen, loaded]);
+
+  // Reset DB to fresh state (used when starting a mutation mission)
+  const resetDb = useCallback(() => {
+    if (!SQL) return null;
+    const fresh = new SQL.Database();
+    fresh.run(SCHEMA_SQL);
+    setDb(fresh);
+    return fresh;
+  }, [SQL]);
+
+  const completeMission = useCallback((missionId) => {
+    setProgress(p => {
+      if (p.completed.includes(missionId)) return p;
+      const m = MISSIONS.find(m => m.id === missionId);
+      if (!m) return p;
+      const newAch = [...p.achievements];
+      if (!newAch.includes("first_spell")) newAch.push("first_spell");
+      if (!p.hintsUsed[missionId] && !newAch.includes("no_hint_run")) newAch.push("no_hint_run");
+      if (m.isBoss && !newAch.includes("boss_slain")) newAch.push("boss_slain");
+      // World completion
+      const worldMissions = MISSIONS.filter(mm => mm.world === m.world).map(mm => mm.id);
+      const allDone = worldMissions.every(id => id === missionId || p.completed.includes(id));
+      if (allDone) {
+        const key = `world_${m.world}`;
+        if (!newAch.includes(key)) newAch.push(key);
+      }
+      return {
+        ...p,
+        completed: [...p.completed, missionId],
+        xp: p.xp + m.xp,
+        coins: p.coins + m.coins,
+        achievements: newAch,
+      };
+    });
+  }, []);
+
+  if (loadError) {
+    return <div style={{padding:40, color:"#d4c5a0", fontFamily:"serif"}}><h2>The runes refuse to align…</h2><pre>{loadError}</pre></div>;
+  }
+
+  return (
+    <div className="arcanum-root" data-theme={theme}>
+      <Styles />
+      <CosmicBackground />
+      {!loaded && <LoadingVeil />}
+      {loaded && screen === "intro" && <IntroScreen onBegin={() => setScreen("sorting")} />}
+      {loaded && screen === "sorting" && (
+        <SortingScreen
+          playerName={playerName}
+          setPlayerName={setPlayerName}
+          onSorted={(h) => { setHouse(h); setScreen("hub"); }}
+        />
+      )}
+      {loaded && screen === "hub" && house && (
+        <HubScreen
+          house={house}
+          playerName={playerName}
+          progress={progress}
+          theme={theme}
+          setTheme={setTheme}
+          onSelectMission={(m) => { setActiveMission(m); setScreen("mission"); }}
+          onGoArena={() => setScreen("arena")}
+          onGoTower={() => setScreen("tower")}
+          onGoShop={() => setScreen("shop")}
+          onReset={() => {
+            localStorage.removeItem("arcanum_save_v2");
+            setHouse(null); setPlayerName("");
+            setProgress({ completed: [], xp: 0, coins: 0, achievements: [], hintsUsed: {}, arenaWins: 0, towerHighest: 0, ownedCosmetics: ["robe_init", "wand_oak", "title_query_apprentice"], equipped: { robe: "robe_init", wand: "wand_oak", title: "title_query_apprentice" }, });
+            setScreen("intro");
+          }}
+        />
+      )}
+      {loaded && screen === "mission" && activeMission && (
+        <MissionScreen
+          mission={activeMission}
+          db={db}
+          house={house}
+          progress={progress}
+          setProgress={setProgress}
+          resetDb={resetDb}
+          onComplete={() => { completeMission(activeMission.id); setScreen("hub"); }}
+          onExit={() => setScreen("hub")}
+        />
+      )}
+      {loaded && screen === "arena" && (
+        <ArenaScreen
+          db={db}
+          house={house}
+          progress={progress}
+          setProgress={setProgress}
+          onExit={() => setScreen("hub")}
+        />
+      )}
+      {loaded && screen === "tower" && (
+        <TowerScreen
+          db={db}
+          house={house}
+          progress={progress}
+          setProgress={setProgress}
+          onExit={() => setScreen("hub")}
+        />
+      )}
+      {loaded && screen === "shop" && (
+        <ShopScreen
+          progress={progress}
+          setProgress={setProgress}
+          house={house}
+          onExit={() => setScreen("hub")}
+        />
+      )}
+      <footer className="arcanum-footer">
+        <span>Forged by</span>
+        <a href="https://www.linkedin.com/in/yashjadhav20/" target="_blank" rel="noopener noreferrer" className="footer-credit">
+          Yash Rajesh Jadhav
+        </a>
+        <span className="footer-tag">· Design Technologist</span>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================================
+// COSMIC BACKGROUND (Three.js)
+// ============================================================================
+function CosmicBackground() {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!window.THREE || !ref.current) return;
+    const THREE = window.THREE;
+    const mount = ref.current;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, mount.clientWidth/mount.clientHeight, 0.1, 1000);
+    camera.position.z = 30;
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.setClearColor(0x000000, 0);
+    mount.appendChild(renderer.domElement);
+
+    const N = 800;
+    const positions = new Float32Array(N*3);
+    const colors = new Float32Array(N*3);
+    for (let i = 0; i < N; i++) {
+      positions[i*3] = (Math.random()-0.5)*100;
+      positions[i*3+1] = (Math.random()-0.5)*60;
+      positions[i*3+2] = (Math.random()-0.5)*50;
+      const t = Math.random();
+      colors[i*3] = 0.85+t*0.15;
+      colors[i*3+1] = 0.7+t*0.2;
+      colors[i*3+2] = 0.4+t*0.4;
+    }
+    const pGeom = new THREE.BufferGeometry();
+    pGeom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    pGeom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const points = new THREE.Points(pGeom, new THREE.PointsMaterial({ size: 0.18, vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending }));
+    scene.add(points);
+
+    const rings = [];
+    for (let i = 0; i < 4; i++) {
+      const geom = new THREE.RingGeometry(3+i*1.5, 3.1+i*1.5, 64);
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(0.08+i*0.05, 0.6, 0.5), transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+      const ring = new THREE.Mesh(geom, mat);
+      ring.position.set((i-1.5)*8, (i%2===0?1:-1)*3, -10-i*2);
+      ring.rotation.x = Math.PI/2;
+      scene.add(ring);
+      rings.push(ring);
+    }
+
+    let mx = 0, my = 0;
+    const onMove = e => { mx = (e.clientX/window.innerWidth-0.5)*2; my = (e.clientY/window.innerHeight-0.5)*2; };
+    window.addEventListener("mousemove", onMove);
+    const onResize = () => {
+      camera.aspect = mount.clientWidth / mount.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+    };
+    window.addEventListener("resize", onResize);
+
+    let raf;
+    const animate = (t) => {
+      const time = t * 0.0001;
+      points.rotation.y = time * 0.3;
+      points.rotation.x = time * 0.1;
+      rings.forEach((r, i) => {
+        r.rotation.z = time * (0.3 + i*0.1);
+        r.position.y = (i%2===0?1:-1) * (3 + Math.sin(time*2 + i)*0.5);
+      });
+      camera.position.x += (mx*3 - camera.position.x) * 0.02;
+      camera.position.y += (-my*2 - camera.position.y) * 0.02;
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("resize", onResize);
+      try { mount.removeChild(renderer.domElement); } catch {}
+      pGeom.dispose();
+      points.material.dispose();
+      rings.forEach(r => { r.geometry.dispose(); r.material.dispose(); });
+      renderer.dispose();
+    };
+  }, []);
+  return <div ref={ref} className="cosmic-bg" aria-hidden="true" />;
+}
+
+// ============================================================================
+// LOADING VEIL
+// ============================================================================
+function LoadingVeil() {
+  return (
+    <div className="loading-veil">
+      <div className="loading-rune">✦</div>
+      <p>The grimoire awakens…</p>
+    </div>
+  );
+}
+
+// ============================================================================
+// INTRO SCREEN
+// ============================================================================
+function IntroScreen({ onBegin }) {
+  const titleRef = useRef(null);
+  const subRef = useRef(null);
+  const btnRef = useRef(null);
+  useEffect(() => {
+    if (!window.anime) return;
+    window.anime.timeline({ easing: "easeOutExpo" })
+      .add({ targets: titleRef.current, opacity: [0,1], translateY: [30,0], duration: 1400 })
+      .add({ targets: subRef.current, opacity: [0,1], translateY: [20,0], duration: 1000 }, "-=900")
+      .add({ targets: btnRef.current, opacity: [0,1], scale: [0.8,1], duration: 800 }, "-=400");
+  }, []);
+  return (
+    <div className="screen intro-screen">
+      <div className="intro-frame">
+        <div className="seal-row">
+          {HOUSES.map(h => <div key={h.id} className="seal" style={{color: h.color}}>{h.glyph}</div>)}
+        </div>
+        <h1 ref={titleRef} className="title-arcanum">
+          <span className="title-line">ARCANUM</span>
+          <span className="title-line title-sub">ACADEMY of DATA MAGIC</span>
+        </h1>
+        <p ref={subRef} className="intro-flavor">
+          Seven worlds. Thirty trials. One kingdom to save.<br/>
+          Every spell is a query. Every door, a predicate.
+        </p>
+        <button ref={btnRef} className="btn-primary btn-shimmer" onClick={onBegin}>
+          <span>Open the Gates</span>
+        </button>
+        <p className="intro-byline">— a grimoire in seven parts —</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SORTING SCREEN
+// ============================================================================
+function SortingScreen({ playerName, setPlayerName, onSorted }) {
+  const [name, setName] = useState(playerName || "");
+  const [hovered, setHovered] = useState(null);
+  const containerRef = useRef(null);
+  useEffect(() => {
+    if (!window.anime) return;
+    window.anime({ targets: ".sort-house", opacity: [0,1], translateY: [40,0], delay: window.anime.stagger(120, {start: 200}), duration: 800, easing: "easeOutExpo" });
+  }, []);
+  const choose = (h) => {
+    if (!name.trim()) {
+      const input = document.querySelector(".sort-name-input");
+      if (input && window.anime) window.anime({ targets: input, translateX:[0,-10,10,-8,8,0], duration: 400 });
+      return;
+    }
+    setPlayerName(name.trim());
+    if (window.anime) {
+      window.anime({ targets: containerRef.current, opacity: [1,0], scale: [1,0.95], duration: 600, easing: "easeInExpo", complete: () => onSorted(h) });
+    } else onSorted(h);
+  };
+  return (
+    <div className="screen sort-screen" ref={containerRef}>
+      <h2 className="sort-title">The Sorting</h2>
+      <p className="sort-flavor">The hat whispers your name. State it, then choose where your magic dwells.</p>
+      <input className="sort-name-input" placeholder="Speak your name…" value={name} onChange={e => setName(e.target.value)} maxLength={32} />
+      <div className="sort-houses">
+        {HOUSES.map(h => (
+          <button key={h.id} className="sort-house"
+            style={{ "--house-color": h.color, borderColor: hovered === h.id ? h.color : "rgba(212,197,160,0.25)" }}
+            onMouseEnter={() => setHovered(h.id)} onMouseLeave={() => setHovered(null)} onClick={() => choose(h)}>
+            <div className="sort-house-glyph" style={{color: h.color}}>{h.glyph}</div>
+            <div className="sort-house-name">{h.name}</div>
+            <div className="sort-house-elem">{h.element} · {h.virtue}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// HUB SCREEN
+// ============================================================================
+function HubScreen({ house, playerName, progress, theme, setTheme, onSelectMission, onGoArena, onGoTower, onGoShop, onReset }) {
+  const [openWorld, setOpenWorld] = useState(null);
+  const [showSchema, setShowSchema] = useState(false);
+
+  useEffect(() => {
+    if (!window.anime) return;
+    window.anime({ targets: ".world-card", opacity:[0,1], translateX:[-30,0], delay: window.anime.stagger(80, {start: 100}), duration: 700, easing: "easeOutExpo" });
+    window.anime({ targets: ".dashboard-stat", opacity:[0,1], translateY:[-15,0], delay: window.anime.stagger(70, {start: 200}), duration: 600, easing: "easeOutExpo" });
+    window.anime({ targets: ".side-mode", opacity:[0,1], scale:[0.92,1], delay: window.anime.stagger(100, {start: 300}), duration: 600, easing: "easeOutExpo" });
+  }, []);
+
+  const totalMissions = MISSIONS.length;
+  const doneCount = progress.completed.length;
+  const percent = (doneCount / totalMissions) * 100;
+  const equippedTitle = COSMETICS.find(c => c.id === progress.equipped.title)?.name || "Initiate";
+
+  return (
+    <div className="screen hub-screen">
+      <header className="hub-header">
+        <div className="hub-banner" style={{ "--house-color": house.color }}>
+          <div className="hub-banner-glyph">{house.glyph}</div>
+          <div className="hub-banner-text">
+            <div className="hub-banner-name">{playerName}</div>
+            <div className="hub-banner-house">of House {house.name} — {equippedTitle}</div>
+          </div>
+        </div>
+        <div className="hub-controls">
+          <button className="btn-ghost" onClick={() => setShowSchema(true)}>⛬ Schema</button>
+          <button className="btn-ghost" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? "☾ Dusk" : "☀ Dawn"}
+          </button>
+          <button className="btn-ghost btn-danger" onClick={() => { if (confirm("Reset all progress? The grimoire will forget you.")) onReset(); }}>Reset</button>
+        </div>
+      </header>
+
+      <section className="dashboard">
+        <div className="dashboard-stat">
+          <div className="stat-label">XP</div>
+          <div className="stat-value">{progress.xp.toLocaleString()}</div>
+          <div className="xp-bar"><div className="xp-fill" style={{width: `${percent}%`}}/></div>
+        </div>
+        <div className="dashboard-stat">
+          <div className="stat-label">Galleons</div>
+          <div className="stat-value">⛂ {progress.coins}</div>
+        </div>
+        <div className="dashboard-stat">
+          <div className="stat-label">Trials</div>
+          <div className="stat-value">{doneCount} / {totalMissions}</div>
+        </div>
+        <div className="dashboard-stat">
+          <div className="stat-label">Achievements</div>
+          <div className="stat-value">{progress.achievements.length} / {ACHIEVEMENTS.length}</div>
+        </div>
+      </section>
+
+      <section className="side-modes">
+        <button className="side-mode arena-mode" onClick={onGoArena}>
+          <div className="mode-glyph">⚡</div>
+          <div className="mode-info">
+            <div className="mode-title">Arena</div>
+            <div className="mode-sub">Timed query duels — {progress.arenaWins} wins</div>
+          </div>
+        </button>
+        <button className="side-mode tower-mode" onClick={onGoTower}>
+          <div className="mode-glyph">▲</div>
+          <div className="mode-info">
+            <div className="mode-title">Endless Tower</div>
+            <div className="mode-sub">Highest floor: {progress.towerHighest}</div>
+          </div>
+        </button>
+        <button className="side-mode shop-mode" onClick={onGoShop}>
+          <div className="mode-glyph">⚜</div>
+          <div className="mode-info">
+            <div className="mode-title">Cosmetic Vault</div>
+            <div className="mode-sub">{progress.ownedCosmetics.length} owned · spend galleons</div>
+          </div>
+        </button>
+      </section>
+
+      <section className="world-map">
+        {WORLDS.map(w => {
+          const wMissions = MISSIONS.filter(m => m.world === w.id);
+          const wDone = wMissions.filter(m => progress.completed.includes(m.id)).length;
+          const prevDone = w.id === 1 ? true : MISSIONS.filter(m => m.world === w.id - 1).every(m => progress.completed.includes(m.id));
+          const locked = !prevDone;
+          return (
+            <div key={w.id} className={`world-card ${locked ? "locked" : ""} ${openWorld === w.id ? "open" : ""}`}>
+              <button className="world-head" onClick={() => !locked && setOpenWorld(openWorld === w.id ? null : w.id)}>
+                <span className="world-glyph">{w.glyph}</span>
+                <div className="world-info">
+                  <div className="world-roman">WORLD {toRoman(w.id)}</div>
+                  <div className="world-title">{w.title}</div>
+                  <div className="world-sub">{w.subtitle}</div>
+                  {openWorld === w.id && <div className="world-story">{w.story}</div>}
+                </div>
+                <div className="world-progress">
+                  {locked ? <span className="lock">⛧ sealed</span> : <span>{wDone}/{wMissions.length}</span>}
+                </div>
+              </button>
+              {openWorld === w.id && !locked && (
+                <div className="mission-list">
+                  {wMissions.map((m, idx) => {
+                    const done = progress.completed.includes(m.id);
+                    const prevM = idx === 0 || progress.completed.includes(wMissions[idx-1].id);
+                    const mLocked = !prevM && !done;
+                    return (
+                      <button key={m.id} className={`mission-row ${done ? "done" : ""} ${mLocked ? "locked" : ""} ${m.isBoss ? "boss" : ""}`} disabled={mLocked} onClick={() => !mLocked && onSelectMission(m)}>
+                        <div className="mission-status">{done ? "✦" : mLocked ? "·" : m.isBoss ? "♛" : "◇"}</div>
+                        <div className="mission-meta">
+                          <div className="mission-title">{m.title}</div>
+                          <div className="mission-concept">{m.concept}</div>
+                        </div>
+                        <div className="mission-rewards"><span className="reward-xp">{m.xp} xp</span></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </section>
+
+      <section className="achievements-strip">
+        <h3 className="ach-heading">Achievements</h3>
+        <div className="ach-grid">
+          {ACHIEVEMENTS.map(a => {
+            const unlocked = progress.achievements.includes(a.id);
+            return (
+              <div key={a.id} className={`ach-card ${unlocked ? "unlocked" : "locked"}`} title={a.desc}>
+                <div className="ach-icon">{a.icon}</div>
+                <div className="ach-title">{a.title}</div>
+                <div className="ach-desc">{a.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {showSchema && <SchemaModal onClose={() => setShowSchema(false)} />}
+    </div>
+  );
+}
+
+
+// ============================================================================
+// MISSION SCREEN
+// ============================================================================
+function MissionScreen({ mission, db, house, progress, setProgress, resetDb, onComplete, onExit }) {
+  const [sql, setSql] = useState(mission.starter || "");
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
+  const [hintLevel, setHintLevel] = useState(0);
+  const [showSchema, setShowSchema] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [executionTime, setExecutionTime] = useState(null);
+  const [activeDb, setActiveDb] = useState(db);
+  const editorRef = useRef(null);
+  const screenRef = useRef(null);
+
+  // For mutation missions: reset DB on entry to give a fresh state
+  useEffect(() => {
+    if (mission.isMutation && resetDb) {
+      const fresh = resetDb();
+      if (fresh) setActiveDb(fresh);
+    } else {
+      setActiveDb(db);
+    }
+  }, [mission.id]);
+
+  useEffect(() => {
+    if (!window.anime) return;
+    window.anime({ targets: screenRef.current, opacity: [0,1], duration: 600, easing: "easeOutExpo" });
+    window.anime({ targets: ".mission-panel", opacity: [0,1], translateY: [20,0], delay: window.anime.stagger(120, {start: 100}), duration: 700, easing: "easeOutExpo" });
+  }, [mission.id]);
+
+  const runQuery = useCallback(() => {
+    setError(null);
+    setResults(null);
+    setSuccess(false);
+    if (!sql.trim() || !activeDb) return;
+    try {
+      const t0 = performance.now();
+      const trimmed = sql.trim().replace(/;+\s*$/, "");
+      // For mutation missions, we allow UPDATE/DELETE/INSERT/BEGIN/COMMIT
+      // The query may contain multiple statements separated by ;
+      // We execute all but only show the result of the last SELECT
+      const statements = trimmed.split(/;\s*\n?/).map(s => s.trim()).filter(s => s.length > 0);
+      let lastSelectResult = null;
+
+      for (const stmt of statements) {
+        const firstWord = stmt.split(/\s+/)[0].toUpperCase();
+        if (mission.isMutation) {
+          // Only allow safe mutation keywords
+          if (!["SELECT","WITH","UPDATE","DELETE","INSERT","BEGIN","COMMIT","ROLLBACK","CREATE","DROP"].includes(firstWord)) {
+            throw new Error(`Statement type "${firstWord}" not permitted here.`);
+          }
+        } else {
+          if (!["SELECT","WITH"].includes(firstWord)) {
+            throw new Error("Only SELECT and WITH (CTE) queries are accepted within these halls.");
+          }
+        }
+
+        if (["SELECT", "WITH"].includes(firstWord)) {
+          const s = activeDb.prepare(stmt);
+          const rows = [];
+          let cols = [];
+          while (s.step()) {
+            if (cols.length === 0) cols = s.getColumnNames();
+            rows.push(s.get());
+          }
+          if (cols.length === 0) try { cols = s.getColumnNames(); } catch {}
+          s.free();
+          lastSelectResult = { cols, rows };
+        } else {
+          activeDb.run(stmt);
+        }
+      }
+
+      const t1 = performance.now();
+      setExecutionTime((t1 - t0).toFixed(2));
+      if (lastSelectResult) {
+        setResults(lastSelectResult);
+        if (mission.validate(lastSelectResult.rows, lastSelectResult.cols)) {
+          setSuccess(true);
+          triggerSpellAnimation(house.color);
+        }
+      } else {
+        // No SELECT was issued — for mutation missions, that's a problem
+        if (mission.isMutation) {
+          setError("Issue a SELECT after your mutation to verify the result.");
+        }
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [sql, activeDb, mission, house]);
+
+  const useHint = (lvl) => {
+    setHintLevel(Math.max(hintLevel, lvl));
+    setProgress(p => ({ ...p, hintsUsed: { ...p.hintsUsed, [mission.id]: true } }));
+  };
+
+  const insertSnippet = (sn) => {
+    const ta = editorRef.current;
+    if (!ta) { setSql(sql + sn); return; }
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    setSql(sql.slice(0,s) + sn + sql.slice(e));
+    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + sn.length; }, 10);
+  };
+
+  const isAlreadyDone = progress.completed.includes(mission.id);
+
+  return (
+    <div className="screen mission-screen" ref={screenRef}>
+      <header className="mission-header">
+        <button className="btn-ghost" onClick={onExit}>← Return to Castle</button>
+        <div className="mission-loc">
+          <div className="mission-roman">WORLD {toRoman(mission.world)} · {mission.isBoss ? "BOSS" : "TRIAL"}</div>
+          <h2 className="mission-name">{mission.title}</h2>
+          <div className="mission-where">{mission.location}</div>
+        </div>
+        <div className="mission-rewards-banner">
+          <span>{mission.xp} xp</span>
+          <span>⛂ {mission.coins}</span>
+        </div>
+      </header>
+
+      <div className="mission-body">
+        <aside className="mission-panel mission-story-panel">
+          <div className="panel-flag">THE TASK</div>
+          <p className="mission-story">{mission.story}</p>
+          <div className="mission-objective">
+            <div className="obj-label">objective</div>
+            <div className="obj-text">{mission.objective}</div>
+          </div>
+          <div className="mission-concept-tag"><span>concept · </span><strong>{mission.concept}</strong></div>
+          {mission.isMutation && (
+            <div className="mutation-warning">
+              ⚠ This trial alters the database. The state has been reset for you.
+            </div>
+          )}
+          <button className="btn-link" onClick={() => setShowSchema(!showSchema)}>{showSchema ? "Hide schema" : "Show schema"}</button>
+          {showSchema && <SchemaViewer />}
+        </aside>
+
+        <section className="mission-panel mission-editor-panel">
+          <div className="panel-flag">YOUR INCANTATION</div>
+          <div className="editor-toolbar">
+            {mission.isMutation
+              ? ["UPDATE ", "DELETE ", "SET ", "WHERE ", "SELECT ", "FROM "].map(s => <button key={s} className="snip-btn" onClick={() => insertSnippet(s)}>{s.trim()}</button>)
+              : ["SELECT ", "FROM ", "WHERE ", "GROUP BY ", "HAVING ", "ORDER BY ", "JOIN ", "LIMIT "].map(s => <button key={s} className="snip-btn" onClick={() => insertSnippet(s)}>{s.trim()}</button>)
+            }
+          </div>
+          <textarea ref={editorRef} className="sql-editor" value={sql} onChange={e => setSql(e.target.value)}
+            onKeyDown={e => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runQuery(); }
+              if (e.key === "Tab") {
+                e.preventDefault();
+                const ta = e.target;
+                const s = ta.selectionStart, en = ta.selectionEnd;
+                setSql(sql.slice(0,s) + "  " + sql.slice(en));
+                setTimeout(() => { ta.selectionStart = ta.selectionEnd = s + 2; }, 0);
+              }
+            }} spellCheck={false} placeholder="-- speak the query…" />
+          <div className="editor-actions">
+            <button className="btn-primary btn-cast" onClick={runQuery}>✦ Cast Query <span className="kbd">⌘↵</span></button>
+            <button className="btn-ghost" onClick={() => setSql(mission.starter || "")}>Reset Scroll</button>
+            {mission.isMutation && (
+              <button className="btn-ghost" onClick={() => { const fresh = resetDb(); if (fresh) { setActiveDb(fresh); setResults(null); setError(null); setSuccess(false); } }}>
+                ↺ Reset DB
+              </button>
+            )}
+          </div>
+
+          {error && <div className="result-error"><div className="err-flag">THE SPELL FALTERS</div><pre>{error}</pre></div>}
+          {results && <ResultsTable cols={results.cols} rows={results.rows} executionTime={executionTime} success={success} />}
+
+          {success && (
+            <div className="success-card">
+              <div className="success-glyph">{mission.isFinalBoss ? "♛" : mission.isBoss ? "★" : "✦"}</div>
+              <div className="success-text">
+                <div className="success-headline">{mission.isFinalBoss ? "THE KINGDOM IS SAVED." : mission.isBoss ? "Boss vanquished." : "The runes ignite."}</div>
+                <div className="success-sub">+{mission.xp} XP · +{mission.coins} galleons</div>
+              </div>
+              <button className="btn-primary" onClick={onComplete}>{isAlreadyDone ? "Continue" : "Claim Reward"}</button>
+            </div>
+          )}
+        </section>
+
+        <aside className="mission-panel mission-mentor-panel">
+          <div className="panel-flag">PROFESSOR ALDRIC</div>
+          <div className="mentor-portrait">✦</div>
+          <div className="mentor-quote">
+            {hintLevel === 0 && "I shall whisper hints — but only if asked. Most students learn fastest from their own faltering."}
+            {hintLevel >= 1 && mission.mentor}
+            {hintLevel >= 2 && (
+              <>
+                <hr style={{margin:"12px 0", border:"none", borderTop:"1px solid rgba(212,197,160,0.2)"}}/>
+                <div style={{opacity:0.7, fontSize:"0.85em", marginBottom:6}}>The full incantation:</div>
+                <pre className="mentor-answer">{mission.expectedSql};</pre>
+              </>
+            )}
+          </div>
+          <div className="mentor-actions">
+            {hintLevel < 1 && <button className="btn-link" onClick={() => useHint(1)}>Ask for a hint</button>}
+            {hintLevel < 2 && hintLevel >= 1 && <button className="btn-link" onClick={() => useHint(2)}>Show me the way</button>}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ARENA SCREEN — random timed challenges
+// ============================================================================
+function ArenaScreen({ db, house, progress, setProgress, onExit }) {
+  const [round, setRound] = useState(0); // 0 = lobby
+  const [challenge, setChallenge] = useState(null);
+  const [sql, setSql] = useState("");
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [verdict, setVerdict] = useState(null); // null, 'won', 'lost', 'timeup'
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [showSchema, setShowSchema] = useState(false);
+  const timerRef = useRef(null);
+
+  const startRound = () => {
+    const c = ARENA_POOL[Math.floor(Math.random() * ARENA_POOL.length)];
+    setChallenge(c);
+    setSql("");
+    setVerdict(null);
+    setResults(null);
+    setError(null);
+    setTimeLeft(c.seconds);
+    setRound(round + 1);
+  };
+
+  useEffect(() => {
+    if (!challenge || verdict) return;
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(timerRef.current);
+          setVerdict('timeup');
+          setStreak(0);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [challenge, verdict]);
+
+  const submit = () => {
+    if (!challenge || !db) return;
+    try {
+      const trimmed = sql.trim().replace(/;+\s*$/, "");
+      const fw = trimmed.split(/\s+/)[0].toUpperCase();
+      if (!["SELECT","WITH"].includes(fw)) {
+        setError("Only SELECT/WITH allowed in the arena.");
+        return;
+      }
+      const stmt = db.prepare(trimmed);
+      const rows = [];
+      let cols = [];
+      while (stmt.step()) {
+        if (cols.length === 0) cols = stmt.getColumnNames();
+        rows.push(stmt.get());
+      }
+      if (cols.length === 0) try { cols = stmt.getColumnNames(); } catch {}
+      stmt.free();
+      setResults({ cols, rows });
+      setError(null);
+      if (challenge.validate(rows, cols)) {
+        clearInterval(timerRef.current);
+        const points = Math.max(10, timeLeft * 2);
+        setScore(s => s + points);
+        setStreak(s => s + 1);
+        setProgress(p => {
+          const newAch = [...p.achievements];
+          const wins = (p.arenaWins || 0) + 1;
+          if (wins >= 5 && !newAch.includes("arena_5")) newAch.push("arena_5");
+          return { ...p, arenaWins: wins, coins: p.coins + 15, achievements: newAch };
+        });
+        triggerSpellAnimation(house.color);
+        setVerdict('won');
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  if (round === 0) {
+    return (
+      <div className="screen arena-screen">
+        <header className="screen-header">
+          <button className="btn-ghost" onClick={onExit}>← Return to Castle</button>
+          <h2 className="screen-title">⚡ ARENA</h2>
+          <button className="btn-ghost" onClick={() => setShowSchema(true)}>⛬ Schema</button>
+        </header>
+        <div className="arena-lobby">
+          <div className="lobby-glyph">⚡</div>
+          <h3>Timed Query Duels</h3>
+          <p className="arena-flavor">A challenge appears. You have seconds, not minutes. Answer correctly and time bleeds into score. Fail, and the streak resets.</p>
+          <div className="arena-stats">
+            <div><span className="stat-label">Total wins</span><span className="stat-value">{progress.arenaWins || 0}</span></div>
+            <div><span className="stat-label">This session</span><span className="stat-value">{score} pts</span></div>
+            <div><span className="stat-label">Streak</span><span className="stat-value">{streak}🔥</span></div>
+          </div>
+          <button className="btn-primary btn-shimmer" onClick={startRound}><span>Begin Round 1</span></button>
+        </div>
+        {showSchema && <SchemaModal onClose={() => setShowSchema(false)} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen arena-screen">
+      <header className="screen-header">
+        <button className="btn-ghost" onClick={onExit}>← Forfeit</button>
+        <h2 className="screen-title">⚡ ARENA · ROUND {round}</h2>
+        <div className="header-right-cluster">
+          <button className="btn-ghost btn-tight" onClick={() => setShowSchema(true)}>⛬ Schema</button>
+          <div className="arena-score">Score: {score} · Streak: {streak}🔥</div>
+        </div>
+      </header>
+
+      <div className="arena-body">
+        <div className={`arena-timer ${timeLeft <= 10 ? 'critical' : ''}`}>
+          <div className="timer-value">{timeLeft}</div>
+          <div className="timer-bar"><div className="timer-fill" style={{ width: `${(timeLeft / challenge.seconds) * 100}%` }} /></div>
+        </div>
+
+        <div className="arena-challenge">
+          <div className="challenge-flag">CHALLENGE</div>
+          <p className="challenge-prompt">{challenge.prompt}</p>
+        </div>
+
+        <textarea className="sql-editor arena-editor" value={sql} onChange={e => setSql(e.target.value)} disabled={!!verdict}
+          onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); submit(); } }}
+          placeholder="-- query before time runs out…" autoFocus />
+
+        <div className="editor-actions">
+          <button className="btn-primary btn-cast" onClick={submit} disabled={!!verdict}>✦ Cast <span className="kbd">⌘↵</span></button>
+        </div>
+
+        {error && <div className="result-error"><pre>{error}</pre></div>}
+        {results && <ResultsTable cols={results.cols} rows={results.rows} executionTime={null} success={verdict === 'won'} />}
+
+        {verdict === 'won' && (
+          <div className="success-card">
+            <div className="success-glyph">⚡</div>
+            <div className="success-text">
+              <div className="success-headline">VICTORY · +{Math.max(10, timeLeft * 2)} pts</div>
+              <div className="success-sub">+15 galleons · streak grows</div>
+            </div>
+            <button className="btn-primary" onClick={startRound}>Next Round</button>
+          </div>
+        )}
+        {verdict === 'timeup' && (
+          <div className="failure-card">
+            <div className="failure-glyph">✗</div>
+            <div className="failure-text">
+              <div className="failure-headline">TIME EXPIRED</div>
+              <div className="failure-sub">The expected query: <code>{challenge.expectedSql}</code></div>
+            </div>
+            <button className="btn-primary" onClick={startRound}>Try Another</button>
+          </div>
+        )}
+      </div>
+      {showSchema && <SchemaModal onClose={() => setShowSchema(false)} />}
+    </div>
+  );
+}
+
+// ============================================================================
+// ENDLESS TOWER — procedural floors
+// ============================================================================
+function TowerScreen({ db, house, progress, setProgress, onExit }) {
+  const [floor, setFloor] = useState(0); // 0 = lobby
+  const [challenge, setChallenge] = useState(null);
+  const [sql, setSql] = useState("");
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [verdict, setVerdict] = useState(null);
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
+  const [showSchema, setShowSchema] = useState(false);
+  const timerRef = useRef(null);
+
+  const startFloor = (f) => {
+    const c = generateTowerFloor(f);
+    setChallenge(c);
+    setSql("");
+    setVerdict(null);
+    setResults(null);
+    setError(null);
+    setTimeLeft(c.seconds);
+    setFloor(f);
+  };
+
+  useEffect(() => {
+    if (!challenge || verdict) return;
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(timerRef.current);
+          setVerdict('timeup');
+          setLives(l => l - 1);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [challenge, verdict]);
+
+  // End run if no lives
+  useEffect(() => {
+    if (lives < 0 && verdict === 'timeup') {
+      // record highest
+      setProgress(p => {
+        const newAch = [...p.achievements];
+        if (floor >= 10 && !newAch.includes("tower_10")) newAch.push("tower_10");
+        return { ...p, towerHighest: Math.max(p.towerHighest || 0, floor - 1), coins: p.coins + Math.max(0, (floor-1)*5), achievements: newAch };
+      });
+    }
+  }, [lives, verdict]);
+
+  const submit = () => {
+    if (!challenge || !db) return;
+    try {
+      const trimmed = sql.trim().replace(/;+\s*$/, "");
+      const fw = trimmed.split(/\s+/)[0].toUpperCase();
+      if (!["SELECT","WITH"].includes(fw)) {
+        setError("Only SELECT/WITH allowed.");
+        return;
+      }
+      const stmt = db.prepare(trimmed);
+      const rows = [];
+      let cols = [];
+      while (stmt.step()) { if (cols.length === 0) cols = stmt.getColumnNames(); rows.push(stmt.get()); }
+      if (cols.length === 0) try { cols = stmt.getColumnNames(); } catch {}
+      stmt.free();
+      setResults({ cols, rows });
+      setError(null);
+      if (challenge.validate(rows, cols)) {
+        clearInterval(timerRef.current);
+        triggerSpellAnimation(house.color);
+        setVerdict('won');
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  if (floor === 0) {
+    return (
+      <div className="screen tower-screen">
+        <header className="screen-header">
+          <button className="btn-ghost" onClick={onExit}>← Return to Castle</button>
+          <h2 className="screen-title">▲ ENDLESS TOWER</h2>
+          <button className="btn-ghost" onClick={() => setShowSchema(true)}>⛬ Schema</button>
+        </header>
+        <div className="tower-lobby">
+          <div className="lobby-glyph">▲</div>
+          <h3>The Tower of Endless Trials</h3>
+          <p className="arena-flavor">Each floor harder than the last. Three lives. No retries within a run. Climb until you fall — and the floor you reach is yours forever.</p>
+          <div className="arena-stats">
+            <div><span className="stat-label">Highest reached</span><span className="stat-value">{progress.towerHighest || 0}</span></div>
+            <div><span className="stat-label">Lives</span><span className="stat-value">3 ♥</span></div>
+          </div>
+          <button className="btn-primary btn-shimmer" onClick={() => { setLives(3); startFloor(1); }}>
+            <span>Enter the Tower</span>
+          </button>
+        </div>
+        {showSchema && <SchemaModal onClose={() => setShowSchema(false)} />}
+      </div>
+    );
+  }
+
+  if (lives < 0) {
+    return (
+      <div className="screen tower-screen">
+        <header className="screen-header">
+          <button className="btn-ghost" onClick={onExit}>← Return to Castle</button>
+          <h2 className="screen-title">▲ ENDLESS TOWER</h2>
+          <button className="btn-ghost" onClick={() => setShowSchema(true)}>⛬ Schema</button>
+        </header>
+        <div className="tower-lobby">
+          <div className="lobby-glyph">✗</div>
+          <h3>You fell.</h3>
+          <p className="arena-flavor">You reached floor {floor}. The tower remembers.</p>
+          <div className="arena-stats">
+            <div><span className="stat-label">Reached</span><span className="stat-value">{floor - 1}</span></div>
+            <div><span className="stat-label">Galleons earned</span><span className="stat-value">⛂ {Math.max(0, (floor-1)*5)}</span></div>
+          </div>
+          <button className="btn-primary" onClick={() => { setLives(3); startFloor(1); }}>Climb Again</button>
+        </div>
+        {showSchema && <SchemaModal onClose={() => setShowSchema(false)} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen tower-screen">
+      <header className="screen-header">
+        <button className="btn-ghost" onClick={onExit}>← Forfeit</button>
+        <h2 className="screen-title">▲ FLOOR {floor}</h2>
+        <div className="header-right-cluster">
+          <button className="btn-ghost btn-tight" onClick={() => setShowSchema(true)}>⛬ Schema</button>
+          <div className="arena-score">Lives: {"♥".repeat(Math.max(0, lives + 1))}</div>
+        </div>
+      </header>
+
+      <div className="arena-body">
+        <div className={`arena-timer ${timeLeft <= 10 ? 'critical' : ''}`}>
+          <div className="timer-value">{timeLeft}</div>
+          <div className="timer-bar"><div className="timer-fill" style={{ width: `${(timeLeft / challenge.seconds) * 100}%` }} /></div>
+        </div>
+
+        <div className="arena-challenge">
+          <div className="challenge-flag">FLOOR {floor}</div>
+          <p className="challenge-prompt">{challenge.prompt}</p>
+        </div>
+
+        <textarea className="sql-editor arena-editor" value={sql} onChange={e => setSql(e.target.value)} disabled={!!verdict}
+          onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); submit(); } }}
+          placeholder="-- the floor awaits…" autoFocus />
+
+        <div className="editor-actions">
+          <button className="btn-primary btn-cast" onClick={submit} disabled={!!verdict}>✦ Cast <span className="kbd">⌘↵</span></button>
+        </div>
+
+        {error && <div className="result-error"><pre>{error}</pre></div>}
+        {results && <ResultsTable cols={results.cols} rows={results.rows} executionTime={null} success={verdict === 'won'} />}
+
+        {verdict === 'won' && (
+          <div className="success-card">
+            <div className="success-glyph">▲</div>
+            <div className="success-text">
+              <div className="success-headline">FLOOR CLEARED</div>
+              <div className="success-sub">Ascend higher</div>
+            </div>
+            <button className="btn-primary" onClick={() => startFloor(floor + 1)}>Floor {floor + 1} ↑</button>
+          </div>
+        )}
+        {verdict === 'timeup' && (
+          <div className="failure-card">
+            <div className="failure-glyph">✗</div>
+            <div className="failure-text">
+              <div className="failure-headline">A LIFE LOST</div>
+              <div className="failure-sub">{lives - 1 >= 0 ? `${lives} ${lives===1?'life':'lives'} remain.` : 'Final breath.'}</div>
+            </div>
+            {lives - 1 >= 0 && <button className="btn-primary" onClick={() => startFloor(floor + 1)}>Continue ↑</button>}
+          </div>
+        )}
+      </div>
+      {showSchema && <SchemaModal onClose={() => setShowSchema(false)} />}
+    </div>
+  );
+}
+
+// ============================================================================
+// COSMETIC SHOP
+// ============================================================================
+function ShopScreen({ progress, setProgress, house, onExit }) {
+  const [tab, setTab] = useState("robe");
+  const completedWorlds = WORLDS.filter(w => MISSIONS.filter(m => m.world === w.id).every(m => progress.completed.includes(m.id))).length;
+
+  const buy = (item) => {
+    if (progress.coins < item.cost) return;
+    if (item.requires && completedWorlds < item.requires) return;
+    setProgress(p => ({
+      ...p,
+      coins: p.coins - item.cost,
+      ownedCosmetics: [...p.ownedCosmetics, item.id],
+    }));
+    triggerSpellAnimation(house.color);
+  };
+
+  const equip = (item) => {
+    setProgress(p => ({
+      ...p,
+      equipped: { ...p.equipped, [item.type]: item.id },
+    }));
+  };
+
+  const items = COSMETICS.filter(c => c.type === tab);
+
+  return (
+    <div className="screen shop-screen">
+      <header className="screen-header">
+        <button className="btn-ghost" onClick={onExit}>← Return to Castle</button>
+        <h2 className="screen-title">⚜ COSMETIC VAULT</h2>
+        <div className="shop-coins">⛂ {progress.coins}</div>
+      </header>
+
+      <div className="shop-tabs">
+        {[{ id: "robe", label: "Robes" }, { id: "wand", label: "Wands" }, { id: "title", label: "Titles" }].map(t => (
+          <button key={t.id} className={`shop-tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
+        ))}
+      </div>
+
+      <div className="shop-grid">
+        {items.map(item => {
+          const owned = progress.ownedCosmetics.includes(item.id);
+          const equipped = progress.equipped[item.type] === item.id;
+          const canAfford = progress.coins >= item.cost;
+          const meetsReq = !item.requires || completedWorlds >= item.requires;
+          return (
+            <div key={item.id} className={`shop-card ${owned ? 'owned' : ''} ${equipped ? 'equipped' : ''}`}>
+              <div className="shop-icon">
+                {item.type === "robe" && "👘"}
+                {item.type === "wand" && "🪄"}
+                {item.type === "title" && "✦"}
+              </div>
+              <div className="shop-name">{item.name}</div>
+              {!owned && (
+                <>
+                  <div className="shop-price">⛂ {item.cost}</div>
+                  {item.requires && completedWorlds < item.requires && (
+                    <div className="shop-lock">requires World {toRoman(item.requires)} cleared</div>
+                  )}
+                  <button className="btn-ghost shop-buy" disabled={!canAfford || !meetsReq} onClick={() => buy(item)}>
+                    {!canAfford ? "Insufficient" : !meetsReq ? "Locked" : "Acquire"}
+                  </button>
+                </>
+              )}
+              {owned && !equipped && <button className="btn-ghost shop-buy" onClick={() => equip(item)}>Equip</button>}
+              {equipped && <div className="shop-equipped">✓ Equipped</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SHARED — ResultsTable, SchemaViewer, helpers, animations
+// ============================================================================
+function ResultsTable({ cols, rows, executionTime, success }) {
+  return (
+    <div className={`result-card ${success ? "success" : ""}`}>
+      <div className="result-header">
+        <span className="result-label">{success ? "✦ MATCHES THE PROPHECY" : "RESULT"}</span>
+        <span className="result-meta">{rows.length} row{rows.length===1?"":"s"}{executionTime ? ` · ${executionTime}ms` : ""}</span>
+      </div>
+      <div className="result-table-wrap">
+        {rows.length === 0 ? (
+          <div className="result-empty">No rows. The chamber is empty.</div>
+        ) : (
+          <table className="result-table">
+            <thead><tr>{cols.map((c,i) => <th key={i}>{c}</th>)}</tr></thead>
+            <tbody>
+              {rows.slice(0,50).map((r, i) => (
+                <tr key={i}>{r.map((c,j) => <td key={j}>{c === null ? <span className="null">∅</span> : String(c)}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {rows.length > 50 && <div className="result-more">… and {rows.length - 50} more rows</div>}
+      </div>
+    </div>
+  );
+}
+
+function SchemaViewer() {
+  const tables = [
+    { name: "houses", cols: ["id", "name", "founder", "element", "color", "points"] },
+    { name: "students", cols: ["id", "name", "house_id→houses", "year", "age", "wand_core", "blood_status", "points", "is_prefect", "rival_id→students"] },
+    { name: "professors", cols: ["id", "name", "subject", "house_id→houses", "years_teaching"] },
+    { name: "wands", cols: ["id", "owner_id→students", "wood", "core", "length_inches", "power", "is_lost"] },
+    { name: "spells", cols: ["id", "name", "incantation", "spell_type", "difficulty", "effect", "is_forbidden"] },
+    { name: "creatures", cols: ["id", "name", "habitat", "danger_level", "is_magical", "diet", "parent_id→creatures"] },
+    { name: "potions", cols: ["id", "name", "difficulty", "brewing_minutes", "effect", "price_galleons"] },
+    { name: "ingredients", cols: ["id", "name", "rarity", "source", "price_per_unit"] },
+    { name: "potion_ingredients", cols: ["potion_id→potions", "ingredient_id→ingredients", "quantity"] },
+    { name: "enrollments", cols: ["id", "student_id→students", "subject", "grade", "semester"] },
+    { name: "owls", cols: ["id", "name", "age", "species", "owner_id→students"] },
+    { name: "treasure", cols: ["id", "vault_name", "gold", "guardian"] },
+    { name: "forest_zones", cols: ["id", "name", "is_magical", "threat_level"] },
+    { name: "creature_sightings", cols: ["id", "creature_id→creatures", "zone_id→forest_zones", "sighting_date"] },
+    { name: "cursed_records", cols: ["id", "student_id→students", "curse_text", "is_active", "inscribed_on"] },
+    { name: "broken_logs", cols: ["id", "log_text", "is_corrupt", "log_date"] },
+    { name: "kingdom_db", cols: ["id", "artifact_name", "is_restored", "power_level"] },
+  ];
+  return (
+    <div className="schema-viewer">
+      {tables.map(t => (
+        <div key={t.name} className="schema-table">
+          <div className="schema-name">{t.name}</div>
+          <ul>{t.cols.map((c,i) => <li key={i}>{c}</li>)}</ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SchemaModal({ onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+  return (
+    <div className="schema-modal-overlay" onClick={onClose}>
+      <div className="schema-modal" onClick={e => e.stopPropagation()}>
+        <header className="schema-modal-head">
+          <div>
+            <div className="schema-modal-eyebrow">DATABASE GRIMOIRE</div>
+            <h3 className="schema-modal-title">Relational Schema · 17 Tables</h3>
+          </div>
+          <button className="schema-modal-close" onClick={onClose} aria-label="Close schema">✕</button>
+        </header>
+        <div className="schema-modal-body">
+          <p className="schema-modal-flavor">Arrows (→) mark foreign-key relationships. Reference any table while you weave your query — the castle hides nothing from a true scholar.</p>
+          <SchemaViewer />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+function toRoman(n) { return ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][n] || String(n); }
+
+function triggerSpellAnimation(color) {
+  if (!window.anime) return;
+  const flash = document.createElement("div");
+  flash.style.cssText = `position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center, ${color}66, transparent 60%);z-index:999;opacity:0;`;
+  document.body.appendChild(flash);
+  window.anime({ targets: flash, opacity: [0,1,0], duration: 1400, easing: "easeOutExpo", complete: () => flash.remove() });
+  for (let i = 0; i < 18; i++) {
+    const m = document.createElement("div");
+    m.style.cssText = `position:fixed;pointer-events:none;z-index:1000;width:6px;height:6px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color};left:50%;top:50%;`;
+    document.body.appendChild(m);
+    window.anime({
+      targets: m,
+      translateX: (Math.random()-0.5) * 600,
+      translateY: (Math.random()-0.5) * 600,
+      opacity: [1,0],
+      scale: [0.5, 2, 0],
+      duration: 1200 + Math.random()*400,
+      easing: "easeOutExpo",
+      complete: () => m.remove(),
+    });
+  }
+}
+
+
+// ============================================================================
+// STYLES
+// ============================================================================
+function Styles() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      .arcanum-root {
+        --bg-deep: #0e0a16;
+        --bg-mid: #1a1428;
+        --bg-card: #1f1830;
+        --bg-card-hi: #2a2140;
+        --gold: #d4c5a0;
+        --gold-bright: #e8d8a8;
+        --gold-dim: #8a7c5c;
+        --parchment: #ebe1c4;
+        --violet: #6b4f8e;
+        --violet-glow: #8a6fb0;
+        --crimson: #b95c5c;
+        --emerald: #6e9b7a;
+        --azure: #5b8cb8;
+        --amber: #d97757;
+        --text: #e8dcc4;
+        --text-dim: #a89a7c;
+        --border: rgba(212,197,160,0.18);
+        --border-hi: rgba(212,197,160,0.4);
+        --shadow: 0 4px 20px rgba(0,0,0,0.5);
+        --glow-soft: 0 0 30px rgba(212,197,160,0.15);
+        position: relative; min-height: 100vh; width: 100%;
+        color: var(--text);
+        background: var(--bg-deep);
+        font-family: 'Cormorant Garamond', serif;
+        overflow-x: hidden;
+      }
+      .arcanum-root[data-theme="light"] {
+        --bg-deep: #f4ebd4;
+        --bg-mid: #e8dbb8;
+        --bg-card: #ebe1c4;
+        --bg-card-hi: #ddcfa8;
+        --text: #2a1d0e;
+        --text-dim: #5a4a2a;
+        --gold: #8b6914;
+        --gold-bright: #6b4f0f;
+        --gold-dim: #b89a4a;
+        --border: rgba(74,52,16,0.25);
+        --border-hi: rgba(74,52,16,0.5);
+        --shadow: 0 4px 16px rgba(74,52,16,0.18);
+      }
+      .cosmic-bg {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      }
+      .arcanum-root > *:not(.cosmic-bg) { position: relative; z-index: 1; }
+
+      /* ===== LOADING ===== */
+      .loading-veil {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 24px;
+        background: radial-gradient(ellipse at center, var(--bg-mid), var(--bg-deep));
+        z-index: 100;
+      }
+      .loading-rune {
+        font-size: 80px; color: var(--gold);
+        animation: rune-pulse 2s infinite ease-in-out;
+        text-shadow: 0 0 30px var(--gold);
+      }
+      @keyframes rune-pulse {
+        0%,100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+        50% { transform: scale(1.15) rotate(180deg); opacity: 1; }
+      }
+      .loading-veil p { color: var(--text-dim); font-style: italic; font-size: 18px; letter-spacing: 0.05em; }
+
+      /* ===== SCREENS ===== */
+      .screen {
+        max-width: 1400px; margin: 0 auto; padding: 32px 28px; min-height: 100vh;
+      }
+      .screen-header {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        padding-bottom: 24px; margin-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+      }
+      .screen-title {
+        font-family: 'Cinzel', serif; font-size: 28px; letter-spacing: 0.2em;
+        color: var(--gold); text-transform: uppercase; margin: 0;
+      }
+
+      /* ===== INTRO ===== */
+      .intro-screen { display: flex; align-items: center; justify-content: center; }
+      .intro-frame {
+        text-align: center; max-width: 720px; padding: 48px;
+        background: linear-gradient(180deg, rgba(31,24,48,0.7), rgba(14,10,22,0.85));
+        border: 1px solid var(--border-hi);
+        border-radius: 4px;
+        box-shadow: var(--shadow), inset 0 0 60px rgba(212,197,160,0.05);
+        backdrop-filter: blur(8px);
+      }
+      .seal-row { display: flex; justify-content: center; gap: 32px; margin-bottom: 24px; }
+      .seal {
+        font-size: 32px; opacity: 0.7;
+        animation: seal-glow 4s infinite ease-in-out;
+      }
+      .seal:nth-child(2) { animation-delay: 1s; }
+      .seal:nth-child(3) { animation-delay: 2s; }
+      .seal:nth-child(4) { animation-delay: 3s; }
+      @keyframes seal-glow {
+        0%,100% { opacity: 0.5; transform: translateY(0); }
+        50% { opacity: 1; transform: translateY(-4px); }
+      }
+      .title-arcanum {
+        font-family: 'Cinzel', serif;
+        margin: 0; line-height: 1.05; color: var(--gold);
+        text-shadow: 0 0 30px rgba(212,197,160,0.3);
+      }
+      .title-line {
+        display: block; font-weight: 700;
+        font-size: clamp(40px, 7vw, 72px); letter-spacing: 0.1em;
+      }
+      .title-line.title-sub {
+        font-size: clamp(16px, 2.2vw, 22px); letter-spacing: 0.4em;
+        font-weight: 500; color: var(--gold-dim); margin-top: 12px;
+      }
+      .intro-flavor {
+        font-size: 19px; line-height: 1.7; color: var(--text-dim); margin: 32px 0;
+        font-style: italic;
+      }
+      .intro-byline { color: var(--gold-dim); font-size: 13px; letter-spacing: 0.3em; margin-top: 28px; opacity: 0.7; }
+
+      /* ===== BUTTONS ===== */
+      .btn-primary {
+        background: linear-gradient(180deg, var(--gold), var(--gold-dim));
+        color: var(--bg-deep);
+        border: 1px solid var(--gold);
+        padding: 14px 32px; font-family: 'Cinzel', serif;
+        font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase;
+        cursor: pointer; border-radius: 2px; font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(212,197,160,0.2);
+      }
+      .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212,197,160,0.4); }
+      .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+      .btn-shimmer { position: relative; overflow: hidden; }
+      .btn-shimmer span { position: relative; z-index: 1; }
+      .btn-shimmer::before {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transform: translateX(-100%);
+        animation: shimmer 3s infinite;
+      }
+      @keyframes shimmer { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
+      .btn-ghost {
+        background: transparent; color: var(--text-dim);
+        border: 1px solid var(--border); padding: 8px 16px;
+        font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.15em;
+        text-transform: uppercase; cursor: pointer; border-radius: 2px;
+        transition: all 0.2s ease;
+      }
+      .btn-ghost:hover { color: var(--gold); border-color: var(--gold); background: rgba(212,197,160,0.08); }
+      .btn-ghost:disabled { opacity: 0.3; cursor: not-allowed; }
+      .btn-ghost.btn-danger:hover { color: var(--crimson); border-color: var(--crimson); background: rgba(185,92,92,0.1); }
+      .btn-link {
+        background: none; border: none; color: var(--gold-dim);
+        text-decoration: underline; cursor: pointer;
+        font-family: 'Cormorant Garamond', serif; font-size: 14px; font-style: italic;
+        padding: 4px 8px;
+      }
+      .btn-link:hover { color: var(--gold); }
+      .btn-cast { display: inline-flex; align-items: center; gap: 10px; }
+      .kbd {
+        font-family: 'JetBrains Mono', monospace; font-size: 10px;
+        padding: 2px 6px; background: rgba(0,0,0,0.3);
+        border-radius: 2px; opacity: 0.6;
+      }
+
+      /* ===== SORTING ===== */
+      .sort-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding-top: 60px; }
+      .sort-title {
+        font-family: 'Cinzel', serif; font-size: 36px; color: var(--gold);
+        letter-spacing: 0.3em; text-transform: uppercase; margin: 0;
+      }
+      .sort-flavor { color: var(--text-dim); font-style: italic; font-size: 18px; max-width: 520px; text-align: center; }
+      .sort-name-input {
+        background: rgba(14,10,22,0.6); border: 1px solid var(--border-hi);
+        padding: 14px 22px; color: var(--text); font-family: 'Cormorant Garamond', serif;
+        font-size: 20px; min-width: 320px; text-align: center;
+        font-style: italic; border-radius: 2px;
+      }
+      .sort-name-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 20px rgba(212,197,160,0.3); }
+      .sort-houses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; max-width: 1080px; width: 100%; }
+      .sort-house {
+        background: linear-gradient(180deg, rgba(31,24,48,0.6), rgba(14,10,22,0.75));
+        border: 1px solid; border-radius: 4px;
+        padding: 28px 18px; cursor: pointer; transition: all 0.3s ease;
+        font-family: 'Cinzel', serif; color: var(--text);
+        text-align: center;
+      }
+      .sort-house:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 30px var(--house-color);
+      }
+      .sort-house-glyph { font-size: 56px; margin-bottom: 14px; text-shadow: 0 0 20px currentColor; }
+      .sort-house-name { font-size: 20px; letter-spacing: 0.15em; margin-bottom: 8px; }
+      .sort-house-elem { font-family: 'Cormorant Garamond', serif; font-style: italic; color: var(--text-dim); font-size: 14px; }
+
+      /* ===== HUB ===== */
+      .hub-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+      .hub-banner {
+        display: flex; align-items: center; gap: 16px;
+        padding: 16px 24px;
+        background: linear-gradient(90deg, var(--house-color)20, transparent);
+        border-left: 3px solid var(--house-color);
+        border-radius: 0 4px 4px 0;
+      }
+      .hub-banner-glyph { font-size: 36px; color: var(--house-color); text-shadow: 0 0 20px var(--house-color); }
+      .hub-banner-name { font-family: 'Cinzel', serif; font-size: 22px; color: var(--gold); letter-spacing: 0.1em; }
+      .hub-banner-house { font-family: 'Cormorant Garamond', serif; color: var(--text-dim); font-style: italic; font-size: 15px; }
+      .hub-controls { display: flex; gap: 10px; }
+
+      .dashboard {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px;
+      }
+      .dashboard-stat {
+        padding: 18px 22px; background: rgba(31,24,48,0.6);
+        border: 1px solid var(--border); border-radius: 3px;
+      }
+      .stat-label {
+        font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.25em;
+        text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; display: block;
+      }
+      .stat-value {
+        font-family: 'Cinzel', serif; font-size: 26px; color: var(--gold);
+        font-weight: 600; display: block;
+      }
+      .xp-bar { margin-top: 12px; height: 4px; background: rgba(212,197,160,0.1); border-radius: 2px; overflow: hidden; }
+      .xp-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); transition: width 0.6s ease; }
+
+      .side-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
+      .side-mode {
+        display: flex; align-items: center; gap: 16px; padding: 18px 22px;
+        background: linear-gradient(135deg, rgba(31,24,48,0.7), rgba(42,33,64,0.5));
+        border: 1px solid var(--border); border-radius: 3px;
+        cursor: pointer; transition: all 0.3s ease; text-align: left;
+        color: var(--text); font-family: 'Cormorant Garamond', serif;
+      }
+      .side-mode:hover {
+        transform: translateY(-3px); border-color: var(--gold);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 30px rgba(212,197,160,0.15);
+      }
+      .arena-mode:hover { border-color: var(--amber); box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 30px rgba(217,119,87,0.3); }
+      .tower-mode:hover { border-color: var(--violet-glow); box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 30px rgba(138,111,176,0.3); }
+      .shop-mode:hover { border-color: var(--gold-bright); }
+      .mode-glyph { font-size: 36px; color: var(--gold); }
+      .arena-mode .mode-glyph { color: var(--amber); }
+      .tower-mode .mode-glyph { color: var(--violet-glow); }
+      .mode-title { font-family: 'Cinzel', serif; font-size: 16px; letter-spacing: 0.15em; color: var(--gold); }
+      .mode-sub { color: var(--text-dim); font-style: italic; font-size: 14px; margin-top: 4px; }
+
+      /* WORLD MAP */
+      .world-map { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+      .world-card {
+        background: rgba(31,24,48,0.5);
+        border: 1px solid var(--border); border-radius: 3px;
+        transition: all 0.3s ease;
+      }
+      .world-card.locked { opacity: 0.4; }
+      .world-card.open { border-color: var(--border-hi); background: rgba(31,24,48,0.75); }
+      .world-head {
+        display: flex; align-items: center; gap: 20px; width: 100%;
+        padding: 20px 24px; background: none; border: none;
+        cursor: pointer; color: var(--text); text-align: left;
+        font-family: 'Cormorant Garamond', serif;
+      }
+      .world-card.locked .world-head { cursor: not-allowed; }
+      .world-glyph { font-size: 36px; color: var(--gold); flex-shrink: 0; width: 48px; text-align: center; }
+      .world-info { flex: 1; }
+      .world-roman { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.3em; color: var(--gold-dim); margin-bottom: 4px; }
+      .world-title { font-family: 'Cinzel', serif; font-size: 22px; color: var(--gold); letter-spacing: 0.08em; }
+      .world-sub { color: var(--text-dim); font-style: italic; font-size: 15px; margin-top: 4px; }
+      .world-story { color: var(--text-dim); font-style: italic; font-size: 15px; margin-top: 14px; padding: 12px; background: rgba(0,0,0,0.2); border-left: 2px solid var(--gold-dim); line-height: 1.5; }
+      .world-progress { font-family: 'Cinzel', serif; font-size: 14px; color: var(--gold); }
+      .world-progress .lock { color: var(--text-dim); font-style: italic; font-family: 'Cormorant Garamond', serif; }
+
+      .mission-list {
+        padding: 12px 24px 24px; display: flex; flex-direction: column; gap: 8px;
+        border-top: 1px solid var(--border);
+      }
+      .mission-row {
+        display: flex; align-items: center; gap: 16px; padding: 14px 18px;
+        background: rgba(0,0,0,0.2); border: 1px solid transparent;
+        cursor: pointer; transition: all 0.2s ease; text-align: left;
+        color: var(--text); font-family: 'Cormorant Garamond', serif; border-radius: 3px;
+      }
+      .mission-row:not(.locked):hover { border-color: var(--gold-dim); background: rgba(212,197,160,0.05); }
+      .mission-row.done { border-color: rgba(110,155,122,0.3); background: rgba(110,155,122,0.06); }
+      .mission-row.locked { opacity: 0.4; cursor: not-allowed; }
+      .mission-row.boss { border-left: 3px solid var(--amber); padding-left: 15px; }
+      .mission-row.boss.done { border-left-color: var(--gold); }
+      .mission-status { font-size: 22px; color: var(--gold); width: 28px; text-align: center; flex-shrink: 0; }
+      .mission-row.done .mission-status { color: var(--emerald); }
+      .mission-row.boss .mission-status { color: var(--amber); }
+      .mission-meta { flex: 1; }
+      .mission-title { font-family: 'Cinzel', serif; font-size: 15px; letter-spacing: 0.05em; color: var(--text); }
+      .mission-row.done .mission-title { color: var(--gold); }
+      .mission-concept { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--gold-dim); letter-spacing: 0.05em; margin-top: 3px; text-transform: uppercase; }
+      .mission-rewards { font-family: 'Cinzel', serif; font-size: 11px; color: var(--gold-dim); letter-spacing: 0.1em; }
+
+      /* ACHIEVEMENTS */
+      .achievements-strip { padding: 24px 0; border-top: 1px solid var(--border); }
+      .ach-heading { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 0.3em; color: var(--gold-dim); text-transform: uppercase; margin: 0 0 16px; }
+      .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+      .ach-card {
+        padding: 14px; background: rgba(31,24,48,0.5);
+        border: 1px solid var(--border); border-radius: 3px;
+        transition: all 0.3s ease;
+      }
+      .ach-card.unlocked { border-color: var(--gold-dim); background: rgba(212,197,160,0.08); }
+      .ach-card.locked { opacity: 0.35; }
+      .ach-icon { font-size: 22px; color: var(--gold); }
+      .ach-title { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 0.1em; color: var(--text); margin: 6px 0 4px; }
+      .ach-desc { font-size: 12px; color: var(--text-dim); font-style: italic; line-height: 1.4; }
+
+      /* ===== MISSION SCREEN ===== */
+      .mission-screen { padding-bottom: 80px; }
+      .mission-header {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        padding: 24px; margin-bottom: 28px;
+        background: linear-gradient(180deg, rgba(31,24,48,0.7), transparent);
+        border-bottom: 1px solid var(--border);
+      }
+      .mission-loc { text-align: center; flex: 1; }
+      .mission-roman { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.4em; color: var(--gold-dim); }
+      .mission-name { font-family: 'Cinzel', serif; font-size: 26px; color: var(--gold); letter-spacing: 0.1em; margin: 8px 0 4px; font-weight: 700; }
+      .mission-where { color: var(--text-dim); font-style: italic; font-size: 14px; }
+      .mission-rewards-banner { display: flex; gap: 16px; font-family: 'Cinzel', serif; font-size: 13px; color: var(--gold); letter-spacing: 0.1em; }
+
+      .mission-body { display: grid; grid-template-columns: 280px 1fr 280px; gap: 20px; }
+      @media (max-width: 1100px) { .mission-body { grid-template-columns: 1fr; } }
+      .mission-panel {
+        background: linear-gradient(180deg, rgba(31,24,48,0.7), rgba(14,10,22,0.5));
+        border: 1px solid var(--border); border-radius: 3px;
+        padding: 20px; backdrop-filter: blur(4px);
+      }
+      .panel-flag {
+        font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.4em;
+        color: var(--gold-dim); text-transform: uppercase; margin-bottom: 14px;
+        padding-bottom: 10px; border-bottom: 1px solid var(--border);
+      }
+      .mission-story { color: var(--text); line-height: 1.6; font-size: 16px; font-style: italic; margin-bottom: 16px; }
+      .mission-objective {
+        padding: 14px; background: rgba(212,197,160,0.06);
+        border-left: 3px solid var(--gold); margin: 16px 0;
+      }
+      .obj-label { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.3em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 6px; }
+      .obj-text { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--gold-bright); line-height: 1.4; }
+      .mission-concept-tag { color: var(--text-dim); font-size: 13px; font-style: italic; margin-top: 14px; }
+      .mission-concept-tag strong { color: var(--gold); font-weight: 600; font-style: normal; font-family: 'JetBrains Mono', monospace; }
+      .mutation-warning {
+        padding: 12px; background: rgba(217,119,87,0.1);
+        border-left: 3px solid var(--amber); color: var(--amber);
+        font-style: italic; font-size: 14px; margin: 16px 0;
+      }
+
+      .editor-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+      .snip-btn {
+        font-family: 'JetBrains Mono', monospace; font-size: 11px;
+        padding: 6px 10px; background: rgba(212,197,160,0.06);
+        border: 1px solid var(--border); color: var(--gold-dim);
+        cursor: pointer; border-radius: 2px; transition: all 0.2s;
+        letter-spacing: 0.05em;
+      }
+      .snip-btn:hover { color: var(--gold); border-color: var(--gold-dim); background: rgba(212,197,160,0.12); }
+      .sql-editor {
+        width: 100%; min-height: 220px;
+        background: rgba(14,10,22,0.85); border: 1px solid var(--border);
+        color: var(--gold-bright); padding: 18px;
+        font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6;
+        resize: vertical; border-radius: 2px; box-sizing: border-box;
+      }
+      .sql-editor:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 20px rgba(212,197,160,0.2); }
+      .editor-actions { display: flex; gap: 12px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+
+      .result-error {
+        background: rgba(185,92,92,0.1); border: 1px solid rgba(185,92,92,0.3);
+        padding: 14px; margin: 14px 0; border-radius: 2px;
+      }
+      .err-flag { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.3em; color: var(--crimson); text-transform: uppercase; margin-bottom: 6px; }
+      .result-error pre { color: var(--text); font-size: 13px; margin: 0; white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; }
+
+      .result-card {
+        background: rgba(14,10,22,0.5); border: 1px solid var(--border);
+        margin: 14px 0; border-radius: 2px; overflow: hidden;
+      }
+      .result-card.success { border-color: var(--gold); box-shadow: 0 0 30px rgba(212,197,160,0.2); }
+      .result-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 14px; background: rgba(0,0,0,0.25);
+        border-bottom: 1px solid var(--border);
+      }
+      .result-label { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.3em; color: var(--gold-dim); text-transform: uppercase; }
+      .result-card.success .result-label { color: var(--gold); }
+      .result-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+      .result-table-wrap { max-height: 320px; overflow: auto; }
+      .result-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+      .result-table th { padding: 8px 12px; text-align: left; background: rgba(212,197,160,0.06); color: var(--gold); font-weight: 600; letter-spacing: 0.05em; position: sticky; top: 0; border-bottom: 1px solid var(--border); }
+      .result-table td { padding: 7px 12px; color: var(--text); border-bottom: 1px solid rgba(212,197,160,0.06); }
+      .result-table tr:hover td { background: rgba(212,197,160,0.04); }
+      .null { color: var(--gold-dim); font-style: italic; }
+      .result-empty { padding: 20px; text-align: center; color: var(--text-dim); font-style: italic; }
+      .result-more { padding: 10px; text-align: center; color: var(--text-dim); font-style: italic; font-size: 12px; }
+
+      .success-card, .failure-card {
+        margin: 18px 0; padding: 22px;
+        display: flex; align-items: center; gap: 18px; border-radius: 3px;
+      }
+      .success-card {
+        background: linear-gradient(135deg, rgba(110,155,122,0.15), rgba(212,197,160,0.1));
+        border: 1px solid var(--gold);
+        box-shadow: 0 0 40px rgba(212,197,160,0.2);
+      }
+      .failure-card {
+        background: linear-gradient(135deg, rgba(185,92,92,0.15), rgba(185,92,92,0.05));
+        border: 1px solid rgba(185,92,92,0.5);
+      }
+      .success-glyph, .failure-glyph { font-size: 42px; color: var(--gold); }
+      .failure-glyph { color: var(--crimson); }
+      .success-text, .failure-text { flex: 1; }
+      .success-headline { font-family: 'Cinzel', serif; font-size: 19px; letter-spacing: 0.2em; color: var(--gold); text-transform: uppercase; }
+      .failure-headline { font-family: 'Cinzel', serif; font-size: 19px; letter-spacing: 0.2em; color: var(--crimson); text-transform: uppercase; }
+      .success-sub, .failure-sub { color: var(--text-dim); margin-top: 4px; font-style: italic; font-size: 14px; }
+      .failure-sub code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 2px; }
+
+      /* MENTOR */
+      .mentor-portrait { font-size: 48px; text-align: center; color: var(--gold); margin-bottom: 12px; text-shadow: 0 0 20px rgba(212,197,160,0.3); }
+      .mentor-quote { color: var(--text); font-style: italic; line-height: 1.6; font-size: 15px; }
+      .mentor-actions { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .mentor-answer { background: rgba(0,0,0,0.4); padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gold-bright); white-space: pre-wrap; border-radius: 2px; line-height: 1.5; }
+
+      /* SCHEMA VIEWER */
+      .schema-viewer { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 400px; overflow-y: auto; }
+      .schema-table {
+        padding: 8px 12px; background: rgba(0,0,0,0.25);
+        border-left: 2px solid var(--gold-dim); border-radius: 0 2px 2px 0;
+      }
+      .schema-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gold); font-weight: 600; margin-bottom: 4px; letter-spacing: 0.05em; }
+      .schema-table ul { margin: 0; padding-left: 16px; list-style: none; }
+      .schema-table li { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); line-height: 1.5; position: relative; }
+      .schema-table li::before { content: "·"; position: absolute; left: -10px; color: var(--gold-dim); }
+
+      /* ===== ARENA ===== */
+      .arena-screen, .tower-screen, .shop-screen { padding-bottom: 60px; }
+      .arena-lobby, .tower-lobby {
+        text-align: center; max-width: 640px; margin: 60px auto;
+        padding: 48px;
+        background: linear-gradient(180deg, rgba(31,24,48,0.7), rgba(14,10,22,0.85));
+        border: 1px solid var(--border-hi); border-radius: 4px;
+        box-shadow: var(--shadow);
+      }
+      .lobby-glyph { font-size: 80px; color: var(--gold); text-shadow: 0 0 40px var(--gold); margin-bottom: 16px; }
+      .arena-lobby h3, .tower-lobby h3 {
+        font-family: 'Cinzel', serif; font-size: 26px; color: var(--gold);
+        letter-spacing: 0.15em; margin: 0 0 16px;
+      }
+      .arena-flavor {
+        color: var(--text-dim); font-style: italic; line-height: 1.7;
+        font-size: 17px; margin: 16px 0 32px;
+      }
+      .arena-stats {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px;
+        padding: 20px; background: rgba(0,0,0,0.2); border-radius: 2px;
+      }
+      .arena-stats > div { display: flex; flex-direction: column; gap: 4px; }
+      .arena-stats .stat-label { font-size: 10px; }
+      .arena-stats .stat-value { font-size: 22px; }
+      .arena-score { font-family: 'Cinzel', serif; color: var(--gold); letter-spacing: 0.1em; }
+
+      .arena-body { max-width: 900px; margin: 0 auto; }
+      .arena-timer {
+        margin-bottom: 20px; padding: 16px; background: rgba(0,0,0,0.3);
+        border: 1px solid var(--border); border-radius: 3px;
+        text-align: center;
+      }
+      .arena-timer.critical { border-color: var(--amber); animation: critical-pulse 0.5s infinite alternate; }
+      @keyframes critical-pulse { from { box-shadow: 0 0 15px rgba(217,119,87,0.4); } to { box-shadow: 0 0 35px rgba(217,119,87,0.8); } }
+      .timer-value { font-family: 'Cinzel', serif; font-size: 42px; color: var(--gold); letter-spacing: 0.1em; }
+      .arena-timer.critical .timer-value { color: var(--amber); }
+      .timer-bar { height: 4px; background: rgba(212,197,160,0.1); margin-top: 10px; border-radius: 2px; overflow: hidden; }
+      .timer-fill { height: 100%; background: linear-gradient(90deg, var(--amber), var(--gold)); transition: width 1s linear; }
+      .arena-timer.critical .timer-fill { background: var(--amber); }
+      .arena-challenge {
+        padding: 20px; background: rgba(31,24,48,0.7);
+        border: 1px solid var(--border); border-radius: 3px; margin-bottom: 16px;
+      }
+      .challenge-flag { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.3em; color: var(--gold-dim); text-transform: uppercase; margin-bottom: 10px; }
+      .challenge-prompt { color: var(--text); font-size: 19px; line-height: 1.5; font-style: italic; margin: 0; }
+      .arena-editor { min-height: 160px; }
+
+      /* ===== SHOP ===== */
+      .shop-coins { font-family: 'Cinzel', serif; font-size: 18px; color: var(--gold); letter-spacing: 0.1em; }
+      .shop-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+      .shop-tab {
+        background: transparent; border: 1px solid transparent; padding: 8px 24px;
+        font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 0.2em;
+        color: var(--text-dim); cursor: pointer; border-radius: 2px;
+      }
+      .shop-tab.active { color: var(--gold); border-color: var(--gold-dim); background: rgba(212,197,160,0.08); }
+      .shop-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;
+      }
+      .shop-card {
+        padding: 22px 18px; background: linear-gradient(180deg, rgba(31,24,48,0.7), rgba(14,10,22,0.5));
+        border: 1px solid var(--border); border-radius: 3px;
+        text-align: center; transition: all 0.3s ease;
+      }
+      .shop-card:hover { transform: translateY(-3px); border-color: var(--gold-dim); }
+      .shop-card.owned { border-color: rgba(110,155,122,0.5); background: linear-gradient(180deg, rgba(110,155,122,0.1), rgba(14,10,22,0.5)); }
+      .shop-card.equipped { border-color: var(--gold); box-shadow: 0 0 25px rgba(212,197,160,0.2); }
+      .shop-icon { font-size: 42px; margin-bottom: 12px; }
+      .shop-name { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 0.1em; color: var(--gold); margin-bottom: 10px; }
+      .shop-price { font-family: 'JetBrains Mono', monospace; color: var(--gold); font-size: 18px; margin: 8px 0; }
+      .shop-lock { color: var(--gold-dim); font-style: italic; font-size: 12px; margin: 6px 0; }
+      .shop-buy { width: 100%; margin-top: 8px; }
+      .shop-equipped { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.2em; color: var(--gold); padding: 8px; background: rgba(212,197,160,0.1); border-radius: 2px; margin-top: 8px; }
+
+      /* Header right cluster (Arena/Tower active states with schema button + score) */
+      .header-right-cluster {
+        display: flex; align-items: center; gap: 12px;
+      }
+      .btn-ghost.btn-tight {
+        padding: 8px 14px; font-size: 11px;
+      }
+
+      /* Schema Modal */
+      .schema-modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(6,4,12,0.78);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 1000;
+        animation: schemaFadeIn 0.25s ease;
+        padding: 40px 20px;
+      }
+      @keyframes schemaFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .schema-modal {
+        background: linear-gradient(180deg, #1a1228 0%, #0e0a16 100%);
+        border: 1px solid var(--gold-dim);
+        border-radius: 4px;
+        max-width: 1100px; width: 100%;
+        max-height: 90vh;
+        display: flex; flex-direction: column;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.7), 0 0 60px rgba(212,197,160,0.08);
+        animation: schemaSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes schemaSlideIn {
+        from { opacity: 0; transform: translateY(20px) scale(0.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .schema-modal-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        padding: 24px 30px 18px;
+        border-bottom: 1px solid var(--border);
+        gap: 20px;
+      }
+      .schema-modal-eyebrow {
+        font-family: 'Cinzel', serif;
+        font-size: 11px; letter-spacing: 0.3em;
+        color: var(--gold-dim);
+        margin-bottom: 6px;
+      }
+      .schema-modal-title {
+        font-family: 'Cinzel', serif;
+        font-size: 22px; font-weight: 500;
+        color: var(--gold);
+        margin: 0;
+        letter-spacing: 0.05em;
+      }
+      .schema-modal-close {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--gold-dim);
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
+      .schema-modal-close:hover {
+        color: var(--gold);
+        border-color: var(--gold);
+        background: rgba(212,197,160,0.08);
+        transform: rotate(90deg);
+      }
+      .schema-modal-body {
+        padding: 22px 30px 30px;
+        overflow-y: auto;
+      }
+      .schema-modal-flavor {
+        color: var(--parchment);
+        opacity: 0.75;
+        font-style: italic;
+        margin: 0 0 18px;
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      .schema-modal-body .schema-viewer {
+        max-height: none;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 12px;
+        overflow: visible;
+      }
+
+      /* Footer credit */
+      .arcanum-footer {
+        position: relative;
+        z-index: 5;
+        margin-top: 60px;
+        padding: 24px 20px 28px;
+        text-align: center;
+        font-family: 'Cinzel', serif;
+        font-size: 11px;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--gold-dim);
+        border-top: 1px solid var(--border);
+        background: linear-gradient(180deg, transparent, rgba(6,4,12,0.5));
+      }
+      .arcanum-footer .footer-credit {
+        color: var(--gold);
+        text-decoration: none;
+        margin: 0 8px;
+        padding: 2px 0;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.3s ease, color 0.3s ease;
+      }
+      .arcanum-footer .footer-credit:hover {
+        color: #f0e4c2;
+        border-bottom-color: var(--gold);
+      }
+      .arcanum-footer .footer-tag {
+        opacity: 0.7;
+        margin-left: 4px;
+      }
+
+      @media (max-width: 600px) {
+        .schema-modal { max-height: 94vh; }
+        .schema-modal-head { padding: 18px 20px 14px; }
+        .schema-modal-body { padding: 18px 20px 24px; }
+        .schema-modal-title { font-size: 17px; }
+        .arcanum-footer { font-size: 9px; letter-spacing: 0.2em; padding: 18px 12px 22px; }
+        .arcanum-footer .footer-tag { display: block; margin-top: 4px; margin-left: 0; }
+      }
+    `}</style>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<ArcanumAcademy />);
+
+  </script>
+</body>
+</html>
